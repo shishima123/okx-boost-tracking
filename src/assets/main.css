@@ -1,6 +1,6 @@
 :root {
-  /* Ép light mode kể cả khi thiết bị đang dark: native control/scrollbar/autofill luôn sáng */
-  color-scheme: light;
+  /* Ép light tuyệt đối: 'only' chặn cả Auto Dark Theme của trình duyệt (Chrome Android...) */
+  color-scheme: only light;
   --bg: #e8ebf0; /* nền trang: xám lạnh dịu, không trắng gắt */
   --bg-soft: #dde2e9; /* sidebar / topbar */
   --bg-card: #f4f6f9; /* card: trắng ngà */
@@ -26,6 +26,7 @@ body,
 }
 
 body {
+  color-scheme: only light;
   font-family:
     'Inter',
     'Segoe UI',
