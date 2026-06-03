@@ -1,25 +1,10 @@
 // Tiện ích định dạng số, tiền tệ và ngày tháng
 
-// Bảng màu cho nhóm (dùng cho n-tag :color). Tự gán theo tên nhóm.
-const GROUP_PALETTE = [
-  { color: 'rgba(22,82,240,0.18)', textColor: '#7aa2ff' },
-  { color: 'rgba(22,199,132,0.18)', textColor: '#37d39b' },
-  { color: 'rgba(240,185,11,0.18)', textColor: '#f0c64a' },
-  { color: 'rgba(234,57,67,0.18)', textColor: '#ff6b73' },
-  { color: 'rgba(168,85,247,0.18)', textColor: '#c79bff' },
-  { color: 'rgba(20,184,166,0.18)', textColor: '#3fd0c0' },
-  { color: 'rgba(244,114,22,0.18)', textColor: '#ff9b52' },
-  { color: 'rgba(236,72,153,0.18)', textColor: '#ff7ac0' },
-  { color: 'rgba(99,102,241,0.18)', textColor: '#a3a6ff' },
-  { color: 'rgba(132,204,22,0.18)', textColor: '#aee44f' },
-]
-
-// Trả về object màu cho n-tag dựa trên tên nhóm (cùng tên → cùng màu).
-export function groupColor(name) {
-  if (!name) return undefined
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  return GROUP_PALETTE[h % GROUP_PALETTE.length]
+// Chuyển hex (#RRGGBB) -> object màu cho n-tag: nền mờ + chữ & viền theo màu đã chọn.
+// Không có màu -> undefined (n-tag dùng style mặc định).
+export function tagColorFromHex(hex) {
+  if (!hex) return undefined
+  return { color: `${hex}2e`, textColor: hex, borderColor: `${hex}66` }
 }
 
 // Đổi Firestore Timestamp (hoặc số ms) sang mili-giây để sắp xếp. Thiếu → 0.
@@ -63,14 +48,23 @@ export function signClass(v) {
 
 // ---- Ngày tháng: dùng chuỗi ISO YYYY-MM-DD trên sheet ----
 
+// Định dạng ISO YYYY-MM-DD theo ngày ĐỊA PHƯƠNG (không dùng toISOString để
+// tránh lệch múi giờ — toISOString trả về UTC, ở UTC+7 sẽ lùi 1 ngày).
+function toLocalISO(d) {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return toLocalISO(new Date())
 }
 
 export function addDays(iso, days) {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + Number(days || 0))
-  return d.toISOString().slice(0, 10)
+  return toLocalISO(d)
 }
 
 // Số ngày còn lại tính từ hôm nay tới ngày kết thúc (âm = đã qua)
@@ -95,13 +89,41 @@ export function fmtDate(iso) {
 // state: 'active' | 'ended' | 'unknown' (dùng để lọc/ẩn).
 export function cycleStatus(endIso) {
   const left = daysLeft(endIso)
-  if (left === null) return { state: 'unknown', label: 'Không rõ', cls: 'muted', left, detail: '' }
-  if (left < 0) return { state: 'ended', label: 'Đã kết thúc', cls: 'muted', left, detail: '' }
+  if (left === null)
+    return { state: 'unknown', label: 'Không rõ', cls: 'muted', left, detail: '', leftCls: 'muted' }
+  if (left < 0)
+    return {
+      state: 'ended',
+      label: 'Đã kết thúc',
+      cls: 'muted',
+      left,
+      detail: `quá ${-left} ngày`,
+      leftCls: 'muted',
+    }
+  // Tô màu text "còn lại": hôm nay = đỏ, ≤2 ngày = vàng, còn lại = xanh
+  let leftCls = 'green'
+  if (left === 0) leftCls = 'red'
+  else if (left <= 2) leftCls = 'yellow'
   return {
     state: 'active',
     label: 'Đang hoạt động',
     cls: left === 0 ? 'yellow' : 'green',
     left,
     detail: left === 0 ? 'hôm nay' : `còn ${left} ngày`,
+    leftCls,
   }
 }
+
+// ---- Màu dùng chung cho bảng (inline style để thắng CSS của naive-ui table) ----
+const CLS_COLORS = {
+  red: 'var(--red)',
+  yellow: 'var(--yellow)',
+  green: 'var(--green)',
+  muted: 'var(--text-dim)',
+}
+// class màu ('green'|'red'|'yellow'|'muted') -> giá trị CSS color
+export const clsColor = (cls) => CLS_COLORS[cls] || 'var(--text-dim)'
+
+// class màu -> type của n-tag (badge trạng thái)
+const CLS_TAG_TYPE = { green: 'success', yellow: 'warning', red: 'error', muted: 'default' }
+export const tagType = (cls) => CLS_TAG_TYPE[cls] || 'default'

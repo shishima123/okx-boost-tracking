@@ -1,15 +1,14 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import {
   NCard,
   NTable,
-  NTag,
   NButton,
   NModal,
   NForm,
   NFormItem,
   NInput,
-  NSelect,
+  NColorPicker,
   NSpace,
   NEmpty,
   NSpin,
@@ -18,7 +17,26 @@ import {
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
-import { groupColor } from '@/utils/format'
+import AccountBadge from '@/components/AccountBadge.vue'
+
+// Bảng màu gợi ý để chọn nhanh
+const COLOR_SWATCHES = [
+  '#2080f0',
+  '#18a058',
+  '#f0a020',
+  '#d03050',
+  '#8a2be2',
+  '#13c2c2',
+  '#fa8c16',
+  '#eb2f96',
+  '#7c4dff',
+  '#52c41a',
+  '#ff5c66',
+  '#f5c451',
+  '#21d08f',
+  '#9254de',
+  '#36cfc9',
+]
 
 const store = useBoostStore()
 
@@ -57,23 +75,16 @@ function onDragEnd() {
 // ----- Thêm / sửa -----
 const show = ref(false)
 const editingId = ref(null)
-const form = reactive({ name: '', group: '', note: '' })
-
-const groupOptions = computed(() =>
-  [...new Set(store.accounts.map((a) => a.group).filter(Boolean))].map((g) => ({
-    label: g,
-    value: g,
-  })),
-)
+const form = reactive({ name: '', color: '', note: '' })
 
 function openCreate() {
   editingId.value = null
-  Object.assign(form, { name: '', group: '', note: '' })
+  Object.assign(form, { name: '', color: '', note: '' })
   show.value = true
 }
 function openEdit(a) {
   editingId.value = a.id
-  Object.assign(form, { name: a.name, group: a.group, note: a.note })
+  Object.assign(form, { name: a.name, color: a.color || '', note: a.note })
   show.value = true
 }
 async function save() {
@@ -89,7 +100,7 @@ async function save() {
   if (!ok) return
   const data = {
     name: form.name.trim(),
-    group: (form.group || '').trim(),
+    color: form.color || '',
     note: (form.note || '').trim(),
   }
   if (editingId.value) {
@@ -123,13 +134,12 @@ async function remove(a) {
     </n-text>
     <n-spin :show="store.loading">
       <div class="table-wrap">
-        <n-table v-if="items.length" :bordered="false" :single-line="false" size="small">
+        <n-table v-if="items.length" :bordered="false" :single-line="false" striped size="small">
           <thead>
             <tr>
               <th style="width: 48px" class="center">STT</th>
               <th style="width: 36px"></th>
               <th>Tên tài khoản</th>
-              <th>Nhóm</th>
               <th>Ghi chú</th>
               <th class="right">Thao tác</th>
             </tr>
@@ -149,12 +159,7 @@ async function remove(a) {
             >
               <td class="center muted">{{ i + 1 }}</td>
               <td class="handle" title="Kéo để sắp xếp">⠿</td>
-              <td>{{ a.name }}</td>
-              <td>
-                <n-tag v-if="a.group" size="tiny" :bordered="false" :color="groupColor(a.group)">{{
-                  a.group
-                }}</n-tag>
-              </td>
+              <td><AccountBadge :name="a.name" /></td>
               <td class="muted">{{ a.note }}</td>
               <td class="right nowrap">
                 <n-space :size="6" justify="end" :wrap="false">
@@ -180,14 +185,12 @@ async function remove(a) {
       <n-form-item label="Tên tài khoản">
         <n-input v-model:value="form.name" placeholder="VD: hieutstl 1" />
       </n-form-item>
-      <n-form-item label="Nhóm (ví / sàn)">
-        <n-select
-          v-model:value="form.group"
-          :options="groupOptions"
-          filterable
-          tag
-          clearable
-          placeholder="VD: OKX, OKX Wallet 1"
+      <n-form-item label="Màu badge">
+        <n-color-picker
+          v-model:value="form.color"
+          :swatches="COLOR_SWATCHES"
+          :modes="['hex']"
+          :show-alpha="false"
         />
       </n-form-item>
       <n-form-item label="Ghi chú">

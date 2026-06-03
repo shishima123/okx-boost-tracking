@@ -1,9 +1,9 @@
 // Cầu nối tới message/dialog của Naive UI dùng được cả ngoài component (vd trong store).
-// createDiscreteApi không cần provider, tự gắn theme tối.
-import { createDiscreteApi, darkTheme } from 'naive-ui'
+// createDiscreteApi không cần provider, dùng theme sáng cho khớp app.
+import { createDiscreteApi, lightTheme } from 'naive-ui'
 
 const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
-  configProviderProps: { theme: darkTheme },
+  configProviderProps: { theme: lightTheme },
 })
 
 export { message, dialog }

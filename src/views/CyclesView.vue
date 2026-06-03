@@ -24,10 +24,21 @@ import {
 } from 'naive-ui'
 import RewardModal from '@/components/RewardModal.vue'
 import CycleOverviewPanel from '@/components/CycleOverviewPanel.vue'
+import AccountBadge from '@/components/AccountBadge.vue'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
 import { getDefaults } from '@/config'
-import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, todayISO, addDays } from '@/utils/format'
+import {
+  fmtUSDT,
+  fmtPct,
+  fmtDate,
+  signClass,
+  cycleStatus,
+  todayISO,
+  addDays,
+  clsColor,
+  tagType,
+} from '@/utils/format'
 
 const store = useBoostStore()
 const defaults = getDefaults()
@@ -42,11 +53,20 @@ const statusOptions = [
   { label: 'Đã kết thúc', value: 'ended' },
 ]
 
+// Mặc định ẩn chu kì đã hết hạn; checkbox để hiện lại (lưu localStorage)
+const showExpired = useStorage('okx-boost:cycles-show-expired', false)
+
 const rows = computed(() => {
   const names = store.accountNames
   return store.cyclesEnriched
     .map((c) => ({ ...c, status: cycleStatus(c.endDate) }))
-    .filter((c) => statusFilter.value === 'all' || c.status.state === statusFilter.value)
+    .filter((c) => {
+      if (statusFilter.value !== 'all' && c.status.state !== statusFilter.value) return false
+      // ẩn chu kì hết hạn trừ khi bật "Hiện đã hết hạn" hoặc đang lọc riêng nhóm hết hạn
+      if (c.status.state === 'ended' && !showExpired.value && statusFilter.value !== 'ended')
+        return false
+      return true
+    })
     .sort(
       (a, b) =>
         (b.startDate || '').localeCompare(a.startDate || '') ||
@@ -276,16 +296,18 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         <n-radio-button value="by-cycle">Theo chu kì</n-radio-button>
       </n-radio-group>
     </n-space>
-    <n-space v-if="viewMode === 'list'" :size="10" align="center">
-      <n-button v-if="expanded.length" quaternary size="small" @click="collapseAll">
-        Đóng tất cả
-      </n-button>
-      <n-select
-        v-model:value="statusFilter"
-        :options="statusOptions"
-        size="small"
-        style="width: 168px"
-      />
+    <n-space :size="10" align="center">
+      <!-- Chỉ liên quan chế độ Danh sách -->
+      <template v-if="viewMode === 'list'">
+        <n-checkbox v-model:checked="showExpired">Hiện đã hết hạn</n-checkbox>
+        <n-select
+          v-model:value="statusFilter"
+          :options="statusOptions"
+          size="small"
+          style="width: 168px"
+        />
+      </template>
+      <!-- Luôn hiện ở cả 2 chế độ -->
       <n-button secondary :disabled="!startDateOptions.length" @click="openBatch">
         ⚡ Nhập thưởng nhanh
       </n-button>
@@ -311,9 +333,12 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     </n-card>
 
     <n-card v-else size="small">
+      <div v-if="expanded.length" class="table-toolbar">
+        <n-button quaternary size="small" @click="collapseAll">Đóng tất cả</n-button>
+      </div>
       <n-spin :show="store.loading">
         <div class="table-wrap">
-          <n-table v-if="rows.length" :bordered="false" :single-line="false" size="small">
+          <n-table v-if="rows.length" :bordered="false" :single-line="false" striped size="small">
             <thead>
               <tr>
                 <th>Tài khoản</th>
@@ -324,6 +349,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                 <th class="right">Lợi nhuận</th>
                 <th class="right">ROI</th>
                 <th>Trạng thái</th>
+                <th>Còn lại (ngày)</th>
                 <th class="right">Thao tác</th>
               </tr>
             </thead>
@@ -332,8 +358,9 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                 <tr>
                   <td>
                     <n-button text size="tiny" @click="toggle(c.id)">
-                      {{ isExpanded(c.id) ? '▾' : '▸' }} {{ c.account }}
+                      {{ isExpanded(c.id) ? '▾' : '▸' }}
                     </n-button>
+                    <AccountBadge :name="c.account" />
                     <n-tag v-if="c.rewardCount" size="tiny" :bordered="false" type="success">
                       {{ c.rewardCount }} thưởng
                     </n-tag>
@@ -342,11 +369,19 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                   <td>{{ fmtDate(c.endDate) }}</td>
                   <td class="right">{{ fmtUSDT(c.fee) }}</td>
                   <td class="right">{{ fmtUSDT(c.reward) }}</td>
-                  <td class="right" :class="signClass(c.profit)">{{ fmtUSDT(c.profit) }}</td>
-                  <td class="right" :class="signClass(c.profit)">{{ fmtPct(c.roi) }}</td>
-                  <td :class="c.status.cls">
-                    {{ c.status.label }}
-                    <span v-if="c.status.detail" class="muted small">· {{ c.status.detail }}</span>
+                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
+                    {{ fmtUSDT(c.profit) }}
+                  </td>
+                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
+                    {{ fmtPct(c.roi) }}
+                  </td>
+                  <td>
+                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
+                      {{ c.status.label }}
+                    </n-tag>
+                  </td>
+                  <td class="nowrap bold" :style="{ color: clsColor(c.status.leftCls) }">
+                    {{ c.status.left === null ? '—' : c.status.left }}
                   </td>
                   <td class="right nowrap">
                     <n-space :size="6" justify="end" :wrap="false">
@@ -359,7 +394,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                   </td>
                 </tr>
                 <tr v-if="isExpanded(c.id)">
-                  <td colspan="9" class="sub-cell">
+                  <td colspan="10" class="sub-cell">
                     <div v-if="rewardsOf(c.id).length" class="sub">
                       <div v-for="r in rewardsOf(c.id)" :key="r.id" class="sub-item">
                         <span>{{ fmtDate(r.date) }}</span>
@@ -384,9 +419,9 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
           <n-empty
             v-else
             :description="
-              statusFilter === 'all'
-                ? 'Chưa có chu kì nào. Bấm “Tạo chu kì” để bắt đầu.'
-                : 'Không có chu kì phù hợp bộ lọc.'
+              store.cyclesEnriched.length
+                ? 'Không có chu kì phù hợp. Thử bật “Hiện đã hết hạn” hoặc đổi bộ lọc.'
+                : 'Chưa có chu kì nào. Bấm “Tạo chu kì” để bắt đầu.'
             "
           />
         </div>
@@ -518,7 +553,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         </div>
         <div v-for="c in batchRows" :key="c.id" class="batch-row">
           <span class="batch-acc">
-            {{ c.account }}
+            <AccountBadge :name="c.account" />
             <span v-if="c.reward" class="muted small">(đã có {{ fmtUSDT(c.reward) }})</span>
           </span>
           <n-input-number
@@ -558,6 +593,11 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
 </template>
 
 <style scoped>
+.table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
 .sub-cell {
   background: var(--bg-soft);
 }

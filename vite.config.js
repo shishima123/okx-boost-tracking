@@ -10,6 +10,11 @@ export default defineConfig({
   // Base path: '/' khi dev/local, '/<repo>/' khi deploy GitHub Pages
   // (workflow set VITE_BASE = /${repo}/)
   base: process.env.VITE_BASE || '/',
+  // 5173 (mặc định) nằm trong dải port bị Windows/WinNAT reserve -> EACCES.
+  // Dùng port ngoài các dải đó.
+  server: {
+    port: 3000,
+  },
   plugins: [
     vue(),
     vueDevTools(),
@@ -21,8 +26,8 @@ export default defineConfig({
         short_name: 'Boost Tracker',
         description: 'Theo dõi OKX Boost: chu kì, phần thưởng và tài khoản',
         lang: 'vi',
-        theme_color: '#0b0e11',
-        background_color: '#0b0e11',
+        theme_color: '#e8ebf0',
+        background_color: '#e8ebf0',
         display: 'standalone',
         icons: [
           {

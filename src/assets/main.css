@@ -1,14 +1,17 @@
 :root {
-  --bg: #1b212a;
-  --bg-soft: #232b36;
-  --bg-card: #262f3b;
-  --border: #38424f;
-  --text: #e6ecf3;
-  --text-dim: #9aa7b6;
+  /* Ép light mode kể cả khi thiết bị đang dark: native control/scrollbar/autofill luôn sáng */
+  color-scheme: light;
+  --bg: #e8ebf0; /* nền trang: xám lạnh dịu, không trắng gắt */
+  --bg-soft: #dde2e9; /* sidebar / topbar */
+  --bg-card: #f4f6f9; /* card: trắng ngà */
+  --border: #cdd5de;
+  --text: #2c343d; /* xám đậm thay vì đen tuyền */
+  --text-dim: #69737e;
   --accent: #3b74ff;
-  --green: #21d08f;
-  --red: #ff5c66;
-  --yellow: #f5c451;
+  --green: #128a5e;
+  --red: #d62f3a;
+  --yellow: #b07d09;
+  --bg-hover: #e1e7ef; /* hàng đang hover */
 }
 
 * {
@@ -60,6 +63,15 @@ body {
 }
 .bold {
   font-weight: 600;
+}
+
+/* Mọi bảng (n-table): hover sáng lên. !important để thắng style striped của naive. */
+.n-table tbody tr:hover > td {
+  background-color: var(--bg-hover) !important;
+}
+/* Giữ nền riêng cho hàng chi tiết (phần thưởng mở rộng) trong trang Chu kì */
+.n-table tbody tr:hover > td.sub-cell {
+  background-color: var(--bg-soft) !important;
 }
 
 /* Bọc bảng: cuộn ngang trong khung, không làm vỡ layout trang (mobile) */

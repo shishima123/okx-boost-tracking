@@ -16,7 +16,8 @@ import {
   NH2,
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
-import { fmtUSDT, fmtPct, signClass, cycleStatus, groupColor } from '@/utils/format'
+import { fmtUSDT, fmtPct, signClass, cycleStatus, clsColor, tagType } from '@/utils/format'
+import AccountBadge from '@/components/AccountBadge.vue'
 
 const store = useBoostStore()
 const summary = computed(() => store.summary)
@@ -62,14 +63,18 @@ const active = computed(() =>
       <n-gi>
         <n-card size="small">
           <n-statistic label="💰 Lợi nhuận (USDT)">
-            <span :class="signClass(summary.profit)">{{ fmtUSDT(summary.profit) }}</span>
+            <span :style="{ color: clsColor(signClass(summary.profit)) }">
+              {{ fmtUSDT(summary.profit) }}
+            </span>
           </n-statistic>
         </n-card>
       </n-gi>
       <n-gi>
         <n-card size="small">
           <n-statistic label="ROI tổng">
-            <span :class="signClass(summary.profit)">{{ fmtPct(summary.roi) }}</span>
+            <span :style="{ color: clsColor(signClass(summary.profit)) }">
+              {{ fmtPct(summary.roi) }}
+            </span>
           </n-statistic>
         </n-card>
       </n-gi>
@@ -87,7 +92,7 @@ const active = computed(() =>
       <n-gi>
         <n-card title="Tổng hợp theo tài khoản" size="small">
           <div class="table-wrap">
-            <n-table v-if="byAccount.length" :bordered="false" :single-line="false" size="small">
+            <n-table v-if="byAccount.length" :bordered="false" :single-line="false" striped size="small">
               <thead>
                 <tr>
                   <th>Tài khoản</th>
@@ -100,21 +105,16 @@ const active = computed(() =>
               </thead>
               <tbody>
                 <tr v-for="a in byAccount" :key="a.name">
-                  <td>
-                    {{ a.name }}
-                    <n-tag
-                      v-if="a.group"
-                      size="tiny"
-                      :bordered="false"
-                      :color="groupColor(a.group)"
-                      >{{ a.group }}</n-tag
-                    >
-                  </td>
+                  <td><AccountBadge :name="a.name" /></td>
                   <td class="right">{{ a.cycles }}</td>
                   <td class="right">{{ fmtUSDT(a.fee) }}</td>
                   <td class="right">{{ fmtUSDT(a.reward) }}</td>
-                  <td class="right" :class="signClass(a.profit)">{{ fmtUSDT(a.profit) }}</td>
-                  <td class="right" :class="signClass(a.profit)">{{ fmtPct(a.roi) }}</td>
+                  <td class="right" :style="{ color: clsColor(signClass(a.profit)) }">
+                    {{ fmtUSDT(a.profit) }}
+                  </td>
+                  <td class="right" :style="{ color: clsColor(signClass(a.profit)) }">
+                    {{ fmtPct(a.roi) }}
+                  </td>
                 </tr>
               </tbody>
             </n-table>
@@ -126,7 +126,7 @@ const active = computed(() =>
       <n-gi>
         <n-card title="Chu kì đang chạy" size="small">
           <div class="table-wrap">
-            <n-table v-if="active.length" :bordered="false" :single-line="false" size="small">
+            <n-table v-if="active.length" :bordered="false" :single-line="false" striped size="small">
               <thead>
                 <tr>
                   <th>Tài khoản</th>
@@ -136,9 +136,15 @@ const active = computed(() =>
               </thead>
               <tbody>
                 <tr v-for="c in active" :key="c.id">
-                  <td>{{ c.account }}</td>
-                  <td class="right" :class="signClass(c.profit)">{{ fmtUSDT(c.profit) }}</td>
-                  <td class="right" :class="c.status.cls">{{ c.status.label }}</td>
+                  <td><AccountBadge :name="c.account" /></td>
+                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
+                    {{ fmtUSDT(c.profit) }}
+                  </td>
+                  <td class="right">
+                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
+                      {{ c.status.label }}
+                    </n-tag>
+                  </td>
                 </tr>
               </tbody>
             </n-table>

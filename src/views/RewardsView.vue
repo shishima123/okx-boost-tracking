@@ -17,6 +17,7 @@ import {
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
 import { fmtUSDT, fmtDate } from '@/utils/format'
+import AccountBadge from '@/components/AccountBadge.vue'
 
 const store = useBoostStore()
 const filterAccount = ref(null)
@@ -91,7 +92,7 @@ async function remove(r) {
   <n-card size="small">
     <n-spin :show="store.loading">
       <div class="table-wrap">
-        <n-table v-if="rows.length" :bordered="false" :single-line="false" size="small">
+        <n-table v-if="rows.length" :bordered="false" :single-line="false" striped size="small">
           <thead>
             <tr>
               <th>Ngày nhận</th>
@@ -106,7 +107,7 @@ async function remove(r) {
           <tbody>
             <tr v-for="r in rows" :key="r.id">
               <td>{{ fmtDate(r.date) }}</td>
-              <td>{{ r.account }}</td>
+              <td><AccountBadge :name="r.account" /></td>
               <td class="muted">{{ cycleLabel[r.cycleId] || '—' }}</td>
               <td>
                 <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>

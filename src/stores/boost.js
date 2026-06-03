@@ -76,21 +76,22 @@ export const useBoostStore = defineStore('boost', {
 
     byAccount(state) {
       const byCycle = this.includeEstimated ? this.rewardsByCycle : this.visibleRewardsByCycle
-      const names = new Set([
-        ...state.accounts.map((a) => a.name),
-        ...state.cycles.map((c) => c.account),
-      ])
+      // Thứ tự tài khoản theo order (kéo-thả); tài khoản chỉ có trong chu kì xếp cuối
+      const order = state.accounts.map((a) => a.name)
+      const rank = (name) => {
+        const i = order.indexOf(name)
+        return i === -1 ? Infinity : i
+      }
+      const names = new Set([...order, ...state.cycles.map((c) => c.account)])
       return [...names]
         .filter(Boolean)
         .map((name) => {
-          const acc = state.accounts.find((a) => a.name === name)
           const list = state.cycles.filter((c) => c.account === name)
           const fee = list.reduce((s, c) => s + c.fee, 0)
           const reward = list.reduce((s, c) => s + (byCycle[c.id] || 0), 0)
           const profit = reward - fee
           return {
             name,
-            group: acc?.group || '',
             cycles: list.length,
             fee,
             reward,
@@ -98,11 +99,18 @@ export const useBoostStore = defineStore('boost', {
             roi: fee ? profit / fee : 0,
           }
         })
-        .sort((a, b) => b.profit - a.profit)
+        .sort((a, b) => rank(a.name) - rank(b.name))
     },
 
     accountNames(state) {
       return state.accounts.map((a) => a.name)
+    },
+
+    // Map tên tài khoản -> màu (hex) để hiển thị badge ở mọi nơi
+    accountColorMap(state) {
+      const m = {}
+      for (const a of state.accounts) if (a.color) m[a.name] = a.color
+      return m
     },
   },
 

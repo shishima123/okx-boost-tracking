@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import { NConfigProvider, NDrawer, NDrawerContent, NButton, darkTheme } from 'naive-ui'
+import { NConfigProvider, NDrawer, NDrawerContent, NButton, lightTheme } from 'naive-ui'
 import { useMediaQuery } from '@vueuse/core'
 import SideNav from '@/components/SideNav.vue'
 import { authState } from '@/composables/auth'
@@ -19,15 +19,15 @@ const themeOverrides = {
     primaryColorHover: '#5a8bff',
     primaryColorPressed: '#2a5fe0',
     borderRadius: '8px',
-    bodyColor: '#1b212a',
-    cardColor: '#262f3b',
-    modalColor: '#262f3b',
-    popoverColor: '#2b3543',
-    borderColor: '#38424f',
-    tableColor: '#262f3b',
-    tableHeaderColor: '#2b3543',
-    inputColor: '#1b212a',
-    textColorBase: '#e6ecf3',
+    bodyColor: '#e8ebf0',
+    cardColor: '#f4f6f9',
+    modalColor: '#f4f6f9',
+    popoverColor: '#fbfcfd',
+    borderColor: '#cdd5de',
+    tableColor: '#f4f6f9',
+    tableHeaderColor: '#eaeef3',
+    inputColor: '#ffffff',
+    textColorBase: '#2c343d',
   },
 }
 
@@ -45,7 +45,7 @@ watch(
 </script>
 
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
+  <n-config-provider :theme="lightTheme" :theme-overrides="themeOverrides">
     <!-- Màn đăng nhập -->
     <RouterView v-if="isLogin" />
 

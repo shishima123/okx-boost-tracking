@@ -18,6 +18,7 @@ import {
   NText,
 } from 'naive-ui'
 import RewardModal from '@/components/RewardModal.vue'
+import AccountBadge from '@/components/AccountBadge.vue'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
 import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus } from '@/utils/format'
@@ -225,7 +226,7 @@ function openEdit(r) {
 
         <n-card title="Các ví trong chu kì" size="small" style="margin-bottom: 16px">
           <div class="table-wrap">
-            <n-table :bordered="false" :single-line="false" size="small">
+            <n-table :bordered="false" :single-line="false" striped size="small">
               <thead>
                 <tr>
                   <th>Tài khoản</th>
@@ -238,7 +239,7 @@ function openEdit(r) {
               </thead>
               <tbody>
                 <tr v-for="c in cyclesInBatch" :key="c.id">
-                  <td>{{ c.account }}</td>
+                  <td><AccountBadge :name="c.account" /></td>
                   <td class="right">{{ fmtUSDT(c.fee) }}</td>
                   <td class="right">{{ fmtUSDT(c.reward) }}</td>
                   <td class="right" :class="signClass(c.profit)">{{ fmtUSDT(c.profit) }}</td>
@@ -280,6 +281,7 @@ function openEdit(r) {
               v-if="rewardsInBatch.length"
               :bordered="false"
               :single-line="false"
+              striped
               size="small"
             >
               <thead>
@@ -298,7 +300,7 @@ function openEdit(r) {
                   :key="r.id"
                   :class="{ changed: editing && isChanged(r) }"
                 >
-                  <td>{{ r.account }}</td>
+                  <td><AccountBadge :name="r.account" /></td>
 
                   <!-- Ngày nhận -->
                   <td>
