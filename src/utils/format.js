@@ -24,10 +24,11 @@ export function toNumber(v) {
 
 export function fmtUSDT(v, digits = 2) {
   const n = toNumber(v)
-  return n.toLocaleString('en-US', {
+  const s = Math.abs(n).toLocaleString('en-US', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })
+  return `${n < 0 ? '-' : ''}$${s}`
 }
 
 export function fmtPct(v, digits = 1) {

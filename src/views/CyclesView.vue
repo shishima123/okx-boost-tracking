@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, h, reactive, ref, watch } from 'vue'
 import { useStorage } from '@vueuse/core'
 import {
   NCard,
@@ -38,6 +38,7 @@ import {
   addDays,
   clsColor,
   tagType,
+  tagColorFromHex,
 } from '@/utils/format'
 
 const store = useBoostStore()
@@ -75,6 +76,26 @@ const rows = computed(() => {
 })
 
 const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
+
+// Hiển thị tên tài khoản theo màu badge trong dropdown / chip đã chọn
+const renderAccountLabel = (option) =>
+  h(AccountBadge, { name: option.value, size: 'small' })
+const renderAccountTag = ({ option, handleClose }) =>
+  h(
+    NTag,
+    {
+      size: 'small',
+      round: true,
+      bordered: false,
+      closable: true,
+      color: tagColorFromHex(store.accountColorMap[option.value]),
+      onClose: (e) => {
+        e.stopPropagation()
+        handleClose()
+      },
+    },
+    { default: () => option.value },
+  )
 
 // ----- Tạo / sửa chu kì -----
 const showCycle = ref(false)
@@ -398,7 +419,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                     <div v-if="rewardsOf(c.id).length" class="sub">
                       <div v-for="r in rewardsOf(c.id)" :key="r.id" class="sub-item">
                         <span>{{ fmtDate(r.date) }}</span>
-                        <span class="green">+{{ fmtUSDT(r.amount) }} USDT</span>
+                        <span class="green">+{{ fmtUSDT(r.amount) }}</span>
                         <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>
                         <n-tag v-if="r.estimated" size="tiny" :bordered="false" type="warning">
                           ước lượng
@@ -439,7 +460,11 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     <n-form>
       <!-- Sửa: 1 tài khoản -->
       <n-form-item v-if="editingId" label="Tài khoản">
-        <n-select v-model:value="form.account" :options="accountOptions" />
+        <n-select
+          v-model:value="form.account"
+          :options="accountOptions"
+          :render-label="renderAccountLabel"
+        />
       </n-form-item>
       <!-- Tạo mới: chọn nhiều tài khoản cùng lúc -->
       <n-form-item v-else>
@@ -454,6 +479,8 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         <n-select
           v-model:value="form.accounts"
           :options="accountOptions"
+          :render-label="renderAccountLabel"
+          :render-tag="renderAccountTag"
           multiple
           filterable
           clearable
@@ -475,7 +502,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         </n-form-item>
       </n-space>
       <n-space :size="12">
-        <n-form-item label="Phí (USDT)" style="flex: 1">
+        <n-form-item label="Phí ($)" style="flex: 1">
           <n-input-number v-model:value="form.fee" :min="0" :step="0.01" style="width: 100%" />
         </n-form-item>
         <n-form-item label="Ngày kết thúc (tự tính)" style="flex: 1">
@@ -549,7 +576,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
       <div v-if="batchRows.length" class="batch-list">
         <div class="batch-head muted">
           <span>Tài khoản</span>
-          <span>Số tiền (USDT)</span>
+          <span>Số tiền ($)</span>
         </div>
         <div v-for="c in batchRows" :key="c.id" class="batch-row">
           <span class="batch-acc">

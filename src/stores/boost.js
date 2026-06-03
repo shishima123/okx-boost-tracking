@@ -64,12 +64,14 @@ export const useBoostStore = defineStore('boost', {
         totalReward += byCycle[c.id] || 0
       }
       const profit = totalReward - totalFee
+      // Số chu kì = số đợt (ngày bắt đầu unique), không phải số record
+      const cycleCount = new Set(state.cycles.map((c) => c.startDate).filter(Boolean)).size
       return {
         totalFee,
         totalReward,
         profit,
         roi: totalFee ? profit / totalFee : 0,
-        cycleCount: state.cycles.length,
+        cycleCount,
         accountCount: this.accounts.length,
       }
     },

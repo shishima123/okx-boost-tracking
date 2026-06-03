@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, h } from 'vue'
 import {
   NCard,
   NTable,
@@ -34,6 +34,9 @@ const tokens = computed(() => [...new Set(store.rewards.map((r) => r.token).filt
 const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
 const tokenOptions = computed(() => tokens.value.map((t) => ({ label: t, value: t })))
 
+// Hiển thị tên tài khoản theo màu badge trong dropdown lọc
+const renderAccountLabel = (option) => h(AccountBadge, { name: option.value, size: 'small' })
+
 const rows = computed(() =>
   store.rewards
     .filter((r) => !filterAccount.value || r.account === filterAccount.value)
@@ -60,6 +63,7 @@ async function remove(r) {
       <n-select
         v-model:value="filterAccount"
         :options="accountOptions"
+        :render-label="renderAccountLabel"
         placeholder="Lọc theo tài khoản"
         clearable
         size="small"
@@ -82,7 +86,7 @@ async function remove(r) {
     </n-gi>
     <n-gi>
       <n-card size="small">
-        <n-statistic label="Tổng (theo lọc) USDT">
+        <n-statistic label="Tổng (theo lọc)">
           <span class="green">{{ fmtUSDT(total) }}</span>
         </n-statistic>
       </n-card>

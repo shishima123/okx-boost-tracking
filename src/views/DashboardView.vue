@@ -52,17 +52,17 @@ const active = computed(() =>
     <n-grid cols="2 s:3 l:6" responsive="screen" :x-gap="14" :y-gap="14">
       <n-gi>
         <n-card size="small"
-          ><n-statistic label="Tổng phí (USDT)" :value="fmtUSDT(summary.totalFee)"
+          ><n-statistic label="Tổng phí" :value="fmtUSDT(summary.totalFee)"
         /></n-card>
       </n-gi>
       <n-gi>
         <n-card size="small"
-          ><n-statistic label="Tổng thưởng (USDT)" :value="fmtUSDT(summary.totalReward)"
+          ><n-statistic label="Tổng thưởng" :value="fmtUSDT(summary.totalReward)"
         /></n-card>
       </n-gi>
       <n-gi>
         <n-card size="small">
-          <n-statistic label="💰 Lợi nhuận (USDT)">
+          <n-statistic label="💰 Lợi nhuận">
             <span :style="{ color: clsColor(signClass(summary.profit)) }">
               {{ fmtUSDT(summary.profit) }}
             </span>

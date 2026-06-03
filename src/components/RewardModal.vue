@@ -104,7 +104,7 @@ async function save() {
             style="width: 100%"
           />
         </n-form-item>
-        <n-form-item label="Số tiền (USDT)" style="flex: 1">
+        <n-form-item label="Số tiền ($)" style="flex: 1">
           <n-input-number v-model:value="form.amount" :min="0" :step="0.01" style="width: 100%" />
         </n-form-item>
       </n-space>

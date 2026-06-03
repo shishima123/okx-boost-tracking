@@ -205,17 +205,17 @@ function openEdit(r) {
           </n-gi>
           <n-gi>
             <n-card size="small"
-              ><n-statistic label="Tổng phí (USDT)" :value="fmtUSDT(batchSummary.fee)"
+              ><n-statistic label="Tổng phí" :value="fmtUSDT(batchSummary.fee)"
             /></n-card>
           </n-gi>
           <n-gi>
             <n-card size="small"
-              ><n-statistic label="Tổng thưởng (USDT)" :value="fmtUSDT(batchSummary.reward)"
+              ><n-statistic label="Tổng thưởng" :value="fmtUSDT(batchSummary.reward)"
             /></n-card>
           </n-gi>
           <n-gi>
             <n-card size="small">
-              <n-statistic label="Lợi nhuận (USDT)">
+              <n-statistic label="Lợi nhuận">
                 <span :class="signClass(batchSummary.profit)">{{
                   fmtUSDT(batchSummary.profit)
                 }}</span>
@@ -289,7 +289,7 @@ function openEdit(r) {
                   <th>Tài khoản</th>
                   <th style="width: 150px">Ngày nhận</th>
                   <th style="width: 140px">Token</th>
-                  <th style="width: 160px">Số tiền (USDT)</th>
+                  <th style="width: 160px">Số tiền ($)</th>
                   <th>Ghi chú</th>
                   <th class="right">Thao tác</th>
                 </tr>
