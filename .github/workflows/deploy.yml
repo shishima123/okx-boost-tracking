@@ -26,7 +26,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24 đi kèm npm 11 — khớp với package-lock.json (tạo bởi npm 11),
+          # tránh lỗi "npm ci out of sync" khi runner dùng npm 10
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
