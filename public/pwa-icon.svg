@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="badge" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#16c784"/>
+      <stop offset="1" stop-color="#3ddc97"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#0b0e11"/>
+  <!-- logo OKX: chữ X tạo từ 5 ô vuông -->
+  <g fill="#ffffff">
+    <rect x="96"  y="96"  width="84" height="84" rx="8"/>
+    <rect x="214" y="214" width="84" height="84" rx="8"/>
+    <rect x="332" y="96"  width="84" height="84" rx="8"/>
+    <rect x="96"  y="332" width="84" height="84" rx="8"/>
+    <rect x="332" y="332" width="84" height="84" rx="8"/>
+  </g>
+  <!-- badge tracking: vòng tròn xanh + mũi tên đi lên -->
+  <circle cx="392" cy="392" r="92" fill="url(#badge)" stroke="#0b0e11" stroke-width="16"/>
+  <path d="M352 416 L384 380 L408 402 L444 360"
+        fill="none" stroke="#ffffff" stroke-width="20"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M414 360 H444 V390" fill="none" stroke="#ffffff"
+        stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

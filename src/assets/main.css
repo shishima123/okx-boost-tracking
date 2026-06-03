@@ -1,0 +1,74 @@
+:root {
+  --bg: #1b212a;
+  --bg-soft: #232b36;
+  --bg-card: #262f3b;
+  --border: #38424f;
+  --text: #e6ecf3;
+  --text-dim: #9aa7b6;
+  --accent: #3b74ff;
+  --green: #21d08f;
+  --red: #ff5c66;
+  --yellow: #f5c451;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    'Inter',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utilities dùng chung */
+.muted {
+  color: var(--text-dim);
+}
+.green {
+  color: var(--green);
+}
+.red {
+  color: var(--red);
+}
+.yellow {
+  color: var(--yellow);
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.bold {
+  font-weight: 600;
+}
+
+/* Bọc bảng: cuộn ngang trong khung, không làm vỡ layout trang (mobile) */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+.table-wrap table {
+  width: max-content;
+  min-width: 100%;
+}
