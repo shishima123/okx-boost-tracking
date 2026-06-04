@@ -81,8 +81,8 @@ const rewardsInBatch = computed(() => {
     .filter((r) => ids.has(r.cycleId))
     .sort(
       (a, b) =>
-        (accountIndex.value[a.account] ?? 999) - (accountIndex.value[b.account] ?? 999) ||
-        (a.date || '').localeCompare(b.date || ''),
+        (b.date || '').localeCompare(a.date || '') ||
+        (accountIndex.value[a.account] ?? 999) - (accountIndex.value[b.account] ?? 999),
     )
 })
 
