@@ -1,8 +1,10 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { useStorage } from '@vueuse/core'
 import {
   NCard,
   NSelect,
+  NCheckbox,
   NGrid,
   NGi,
   NStatistic,
@@ -21,7 +23,7 @@ import RewardModal from '@/components/RewardModal.vue'
 import AccountBadge from '@/components/AccountBadge.vue'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
-import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus } from '@/utils/format'
+import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, tagType, clsColor } from '@/utils/format'
 
 const store = useBoostStore()
 
@@ -31,25 +33,35 @@ const accountIndex = computed(() => {
   return m
 })
 
+// Chỉ hiện đợt đang hoạt động (lưu lựa chọn vào localStorage)
+const onlyActive = useStorage('okx-boost:overview-only-active', true)
+
 const batchOptions = computed(() => {
   const map = {}
   for (const c of store.cycles) {
-    if (!map[c.startDate]) map[c.startDate] = { count: 0, end: c.endDate }
+    if (!map[c.startDate]) map[c.startDate] = { count: 0, end: c.endDate || '' }
     map[c.startDate].count++
+    if ((c.endDate || '') > map[c.startDate].end) map[c.startDate].end = c.endDate || ''
   }
   return Object.keys(map)
     .sort((a, b) => b.localeCompare(a))
     .map((d) => {
       const st = cycleStatus(map[d].end)
-      return { label: `${fmtDate(d)} — ${map[d].count} ví · ${st.label}`, value: d }
+      return {
+        label: `${fmtDate(d)} — ${map[d].count} ví · ${st.label}`,
+        value: d,
+        state: st.state,
+      }
     })
+    .filter((o) => !onlyActive.value || o.state === 'active')
 })
 
 const selected = ref(null)
+// Chọn đợt đầu khi chưa chọn, hoặc khi đợt đang chọn bị lọc ra khỏi danh sách.
 watch(
   batchOptions,
   (opts) => {
-    if (!selected.value && opts.length) selected.value = opts[0].value
+    if (!opts.some((o) => o.value === selected.value)) selected.value = opts[0]?.value ?? null
   },
   { immediate: true },
 )
@@ -73,6 +85,14 @@ const batchSummary = computed(() => {
     profit: reward - fee,
     roi: fee ? (reward - fee) / fee : 0,
   }
+})
+
+// Ngày bắt đầu / kết thúc / còn lại của đợt (các ví cùng đợt thường cùng ngày kết thúc;
+// lấy ngày kết thúc xa nhất để an toàn nếu có lệch).
+const batchMeta = computed(() => {
+  const list = cyclesInBatch.value
+  const end = list.reduce((mx, c) => (c.endDate > mx ? c.endDate : mx), '')
+  return { start: selected.value, end, status: cycleStatus(end) }
 })
 
 const rewardsInBatch = computed(() => {
@@ -183,12 +203,15 @@ function openEdit(r) {
 <template>
   <div>
     <n-card size="small" style="margin-bottom: 16px">
-      <n-select
-        v-model:value="selected"
-        :options="batchOptions"
-        placeholder="Chọn đợt chu kì (theo ngày bắt đầu)"
-        style="max-width: 360px"
-      />
+      <n-space align="center" :size="16" :wrap="true">
+        <n-select
+          v-model:value="selected"
+          :options="batchOptions"
+          placeholder="Chọn đợt chu kì (theo ngày bắt đầu)"
+          style="width: 360px; max-width: 100%"
+        />
+        <n-checkbox v-model:checked="onlyActive">Chỉ hiện chu kì đang hoạt động</n-checkbox>
+      </n-space>
     </n-card>
 
     <n-spin :show="store.loading">
@@ -223,6 +246,29 @@ function openEdit(r) {
             </n-card>
           </n-gi>
         </n-grid>
+
+        <n-card size="small" style="margin-bottom: 16px">
+          <n-space :size="28" align="center" :wrap="true">
+            <span
+              ><span class="muted">Bắt đầu:</span> <b>{{ fmtDate(batchMeta.start) }}</b></span
+            >
+            <span
+              ><span class="muted">Kết thúc:</span> <b>{{ fmtDate(batchMeta.end) }}</b></span
+            >
+            <span class="meta-left">
+              <span class="muted">Còn lại:</span>
+              <n-tag size="small" round :bordered="false" :type="tagType(batchMeta.status.cls)">
+                {{ batchMeta.status.label }}
+              </n-tag>
+              <b
+                v-if="batchMeta.status.detail"
+                :style="{ color: clsColor(batchMeta.status.leftCls) }"
+              >
+                {{ batchMeta.status.detail }}
+              </b>
+            </span>
+          </n-space>
+        </n-card>
 
         <n-card title="Các ví trong chu kì" size="small" style="margin-bottom: 16px">
           <div class="table-wrap">
@@ -364,7 +410,13 @@ function openEdit(r) {
       </template>
 
       <n-card v-else size="small">
-        <n-empty description="Chưa có chu kì. Hãy tạo chu kì ở chế độ Danh sách." />
+        <n-empty
+          :description="
+            onlyActive && store.cycles.length
+              ? 'Không có chu kì đang hoạt động. Bỏ chọn “Chỉ hiện chu kì đang hoạt động” để xem các đợt đã kết thúc.'
+              : 'Chưa có chu kì. Hãy tạo chu kì ở chế độ Danh sách.'
+          "
+        />
       </n-card>
     </n-spin>
 
@@ -380,5 +432,10 @@ function openEdit(r) {
 <style scoped>
 tbody tr.changed td {
   background: rgba(240, 185, 11, 0.12);
+}
+.meta-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>
