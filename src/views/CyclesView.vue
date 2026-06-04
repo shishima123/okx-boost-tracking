@@ -421,7 +421,13 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                       {{ isExpanded(c.id) ? '▾' : '▸' }}
                     </n-button>
                     <AccountBadge :name="c.account" />
-                    <n-tag v-if="c.rewardCount" size="tiny" :bordered="false" type="success">
+                    <n-tag
+                      v-if="c.rewardCount"
+                      size="tiny"
+                      :bordered="false"
+                      type="success"
+                      style="margin-left: 8px"
+                    >
                       {{ c.rewardCount }} thưởng
                     </n-tag>
                   </td>
@@ -496,7 +502,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     :title="editingId ? 'Sửa chu kì' : 'Tạo chu kì mới'"
     style="max-width: 460px"
   >
-    <n-form>
+    <n-form :show-feedback="false" class="tight-form">
       <!-- Sửa: 1 tài khoản -->
       <n-form-item v-if="editingId" label="Tài khoản">
         <n-select
@@ -506,7 +512,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         />
       </n-form-item>
       <!-- Tạo mới: chọn nhiều tài khoản cùng lúc -->
-      <n-form-item v-else>
+      <n-form-item v-else :show-feedback="!!hiddenAccountCount">
         <template #label>
           <span class="label-row">
             Tài khoản ({{ form.accounts.length }} đã chọn)
@@ -609,7 +615,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     title="⚡ Nhập thưởng nhanh theo chu kì"
     style="max-width: 540px"
   >
-    <n-form>
+    <n-form :show-feedback="false" class="tight-form">
       <n-form-item label="Chọn chu kì (theo ngày bắt đầu)">
         <n-select
           v-model:value="batchStart"
@@ -668,11 +674,9 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
       <n-form-item label="Ghi chú" style="margin-top: 12px">
         <n-input v-model:value="bForm.note" placeholder="Tuỳ chọn (áp dụng cho tất cả)" />
       </n-form-item>
-      <n-form-item>
-        <n-checkbox v-model:checked="bForm.estimated">
-          Đánh dấu tất cả là thưởng ước lượng (chưa chính thức)
-        </n-checkbox>
-      </n-form-item>
+      <n-checkbox v-model:checked="bForm.estimated" style="margin-top: 12px">
+        Đánh dấu tất cả là thưởng ước lượng (chưa chính thức)
+      </n-checkbox>
     </n-form>
     <template #footer>
       <n-space justify="end">
@@ -744,5 +748,10 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Modal (tạo chu kì / nhập thưởng nhanh): tắt feedback nhưng vẫn chừa khoảng cách giữa các ô */
+.tight-form :deep(.n-form-item) {
+  margin-bottom: 14px;
 }
 </style>

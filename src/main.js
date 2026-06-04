@@ -8,8 +8,8 @@ import App from './App.vue'
 import router from './router'
 
 const updateSW = registerSW({
-    onNeedRefresh() { },
-    onOfflineReady() { },
+  onNeedRefresh() {},
+  onOfflineReady() {},
 })
 
 const app = createApp(App)

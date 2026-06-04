@@ -198,7 +198,7 @@ async function remove(a) {
     :title="editingId ? 'Sửa tài khoản' : 'Thêm tài khoản'"
     style="max-width: 420px"
   >
-    <n-form>
+    <n-form :show-feedback="false" class="tight-form">
       <n-form-item label="Tên tài khoản">
         <n-input v-model:value="form.name" placeholder="VD: hieutstl 1" />
       </n-form-item>
@@ -247,5 +247,9 @@ async function remove(a) {
 }
 .handle:active {
   cursor: grabbing;
+}
+/* Modal thêm/sửa tài khoản: tắt feedback nhưng vẫn chừa khoảng cách giữa các ô */
+.tight-form :deep(.n-form-item) {
+  margin-bottom: 14px;
 }
 </style>
