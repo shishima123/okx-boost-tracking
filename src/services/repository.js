@@ -46,6 +46,14 @@ export const addCycle = (data) => create('cycles', data)
 export const updateCycle = (id, data) => updateDoc(doc(db, 'cycles', id), data)
 export const deleteCycle = (id) => deleteDoc(doc(db, 'cycles', id))
 
+// Xoá chu kì kèm các phần thưởng liên kết (1 batch atomic). rewardIds rỗng = chỉ xoá chu kì.
+export function deleteCycleWithRewards(cycleId, rewardIds = []) {
+  const batch = writeBatch(db)
+  rewardIds.forEach((rid) => batch.delete(doc(db, 'rewards', rid)))
+  batch.delete(doc(db, 'cycles', cycleId))
+  return batch.commit()
+}
+
 // ---------- Rewards ----------
 export const subscribeRewards = (cb, onErr) => subscribe('rewards', cb, onErr)
 export const addReward = (data) => create('rewards', data)

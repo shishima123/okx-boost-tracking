@@ -104,6 +104,40 @@ export const useBoostStore = defineStore('boost', {
         .sort((a, b) => rank(a.name) - rank(b.name))
     },
 
+    // Tổng hợp theo "đợt" (ngày bắt đầu) — dùng cho biểu đồ lợi nhuận theo đợt.
+    batches(state) {
+      const byCycle = this.includeEstimated ? this.rewardsByCycle : this.visibleRewardsByCycle
+      const map = {}
+      for (const c of state.cycles) {
+        const k = c.startDate || ''
+        if (!k) continue
+        if (!map[k]) map[k] = { startDate: k, count: 0, fee: 0, reward: 0 }
+        map[k].count++
+        map[k].fee += c.fee
+        map[k].reward += byCycle[c.id] || 0
+      }
+      return Object.values(map)
+        .map((b) => ({
+          ...b,
+          profit: b.reward - b.fee,
+          roi: b.fee ? (b.reward - b.fee) / b.fee : 0,
+        }))
+        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+    },
+
+    // Tổng thưởng theo token — dùng cho biểu đồ phân bổ thưởng.
+    rewardsByToken(state) {
+      const map = {}
+      for (const r of state.rewards) {
+        if (!this.includeEstimated && r.estimated) continue
+        const t = r.token || '(không rõ)'
+        if (!map[t]) map[t] = { token: t, amount: 0, count: 0 }
+        map[t].amount += r.amount
+        map[t].count++
+      }
+      return Object.values(map).sort((a, b) => b.amount - a.amount)
+    },
+
     accountNames(state) {
       return state.accounts.map((a) => a.name)
     },
@@ -212,6 +246,15 @@ export const useBoostStore = defineStore('boost', {
     },
     deleteCycle(id) {
       return this._run(() => repo.deleteCycle(id), 'Đã xoá chu kì.')
+    },
+    // Xoá chu kì kèm (tuỳ chọn) các phần thưởng liên kết — tránh thưởng "mồ côi".
+    deleteCycleWithRewards(id, rewardIds = []) {
+      return this._run(
+        () => repo.deleteCycleWithRewards(id, rewardIds),
+        rewardIds.length
+          ? `Đã xoá chu kì và ${rewardIds.length} phần thưởng liên kết.`
+          : 'Đã xoá chu kì.',
+      )
     },
 
     // Rewards

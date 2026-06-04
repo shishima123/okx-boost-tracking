@@ -9,6 +9,8 @@ import {
   NFormItem,
   NInput,
   NColorPicker,
+  NSelect,
+  NTag,
   NSpace,
   NEmpty,
   NSpin,
@@ -17,7 +19,10 @@ import {
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
+import { ACCOUNT_STATUSES, accountStatusInfo } from '@/utils/format'
 import AccountBadge from '@/components/AccountBadge.vue'
+
+const statusOptions = ACCOUNT_STATUSES.map((s) => ({ label: s.label, value: s.value }))
 
 // Bảng màu gợi ý để chọn nhanh
 const COLOR_SWATCHES = [
@@ -75,16 +80,21 @@ function onDragEnd() {
 // ----- Thêm / sửa -----
 const show = ref(false)
 const editingId = ref(null)
-const form = reactive({ name: '', color: '', note: '' })
+const form = reactive({ name: '', color: '', note: '', status: 'active' })
 
 function openCreate() {
   editingId.value = null
-  Object.assign(form, { name: '', color: '', note: '' })
+  Object.assign(form, { name: '', color: '', note: '', status: 'active' })
   show.value = true
 }
 function openEdit(a) {
   editingId.value = a.id
-  Object.assign(form, { name: a.name, color: a.color || '', note: a.note })
+  Object.assign(form, {
+    name: a.name,
+    color: a.color || '',
+    note: a.note,
+    status: accountStatusInfo(a.status).value,
+  })
   show.value = true
 }
 async function save() {
@@ -102,6 +112,7 @@ async function save() {
     name: form.name.trim(),
     color: form.color || '',
     note: (form.note || '').trim(),
+    status: form.status || 'active',
   }
   if (editingId.value) {
     await store.updateAccount(editingId.value, data)
@@ -140,6 +151,7 @@ async function remove(a) {
               <th style="width: 48px" class="center">STT</th>
               <th style="width: 36px"></th>
               <th>Tên tài khoản</th>
+              <th style="width: 120px">Trạng thái</th>
               <th>Ghi chú</th>
               <th class="right">Thao tác</th>
             </tr>
@@ -160,6 +172,11 @@ async function remove(a) {
               <td class="center muted">{{ i + 1 }}</td>
               <td class="handle" title="Kéo để sắp xếp">⠿</td>
               <td><AccountBadge :name="a.name" /></td>
+              <td>
+                <n-tag size="small" round :bordered="false" :type="accountStatusInfo(a.status).tag">
+                  {{ accountStatusInfo(a.status).label }}
+                </n-tag>
+              </td>
               <td class="muted">{{ a.note }}</td>
               <td class="right nowrap">
                 <n-space :size="6" justify="end" :wrap="false">
@@ -184,6 +201,9 @@ async function remove(a) {
     <n-form>
       <n-form-item label="Tên tài khoản">
         <n-input v-model:value="form.name" placeholder="VD: hieutstl 1" />
+      </n-form-item>
+      <n-form-item label="Trạng thái">
+        <n-select v-model:value="form.status" :options="statusOptions" />
       </n-form-item>
       <n-form-item label="Màu badge">
         <n-color-picker

@@ -16,8 +16,9 @@ import {
   NH2,
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
-import { fmtUSDT, fmtPct, signClass, cycleStatus, clsColor, tagType } from '@/utils/format'
+import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, clsColor, tagType } from '@/utils/format'
 import AccountBadge from '@/components/AccountBadge.vue'
+import BarList from '@/components/BarList.vue'
 
 const store = useBoostStore()
 const summary = computed(() => store.summary)
@@ -28,6 +29,35 @@ const active = computed(() =>
     .map((c) => ({ ...c, status: cycleStatus(c.endDate) }))
     .filter((c) => c.status.left !== null && c.status.left >= 0)
     .sort((a, b) => a.status.left - b.status.left),
+)
+
+// ----- Xếp hạng ROI: ví lời nhất / lỗ nhất (chỉ xét ví có chu kì & có phí) -----
+const roiRank = computed(() => {
+  const elig = byAccount.value.filter((a) => a.cycles > 0 && a.fee > 0)
+  if (elig.length < 2) return { best: null, worst: null }
+  let best = elig[0]
+  let worst = elig[0]
+  for (const a of elig) {
+    if (a.roi > best.roi) best = a
+    if (a.roi < worst.roi) worst = a
+  }
+  return { best: best.name, worst: worst.name }
+})
+
+// ----- Dữ liệu biểu đồ -----
+const profitByBatch = computed(() =>
+  store.batches.map((b) => ({
+    label: fmtDate(b.startDate),
+    value: b.profit,
+    sub: ` · ${fmtPct(b.roi)}`,
+  })),
+)
+const rewardByToken = computed(() =>
+  store.rewardsByToken.map((t) => ({
+    label: t.token,
+    value: t.amount,
+    sub: ` · ${t.count} lần`,
+  })),
 )
 </script>
 
@@ -90,9 +120,30 @@ const active = computed(() =>
 
     <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
       <n-gi>
+        <n-card title="Lợi nhuận theo đợt" size="small">
+          <BarList v-if="profitByBatch.length" :items="profitByBatch" signed :format="fmtUSDT" />
+          <n-empty v-else description="Chưa có đợt chu kì nào." />
+        </n-card>
+      </n-gi>
+      <n-gi>
+        <n-card title="Thưởng theo token" size="small">
+          <BarList v-if="rewardByToken.length" :items="rewardByToken" :format="fmtUSDT" />
+          <n-empty v-else description="Chưa có phần thưởng nào." />
+        </n-card>
+      </n-gi>
+    </n-grid>
+
+    <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
+      <n-gi>
         <n-card title="Tổng hợp theo tài khoản" size="small">
           <div class="table-wrap">
-            <n-table v-if="byAccount.length" :bordered="false" :single-line="false" striped size="small">
+            <n-table
+              v-if="byAccount.length"
+              :bordered="false"
+              :single-line="false"
+              striped
+              size="small"
+            >
               <thead>
                 <tr>
                   <th>Tài khoản</th>
@@ -104,8 +155,21 @@ const active = computed(() =>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="a in byAccount" :key="a.name">
-                  <td><AccountBadge :name="a.name" /></td>
+                <tr
+                  v-for="a in byAccount"
+                  :key="a.name"
+                  :class="{
+                    'roi-best': a.name === roiRank.best,
+                    'roi-worst': a.name === roiRank.worst,
+                  }"
+                >
+                  <td class="nowrap">
+                    <AccountBadge :name="a.name" />
+                    <span v-if="a.name === roiRank.best" class="rank" title="ROI cao nhất">🥇</span>
+                    <span v-else-if="a.name === roiRank.worst" class="rank" title="ROI thấp nhất">
+                      ⚠️
+                    </span>
+                  </td>
                   <td class="right">{{ a.cycles }}</td>
                   <td class="right">{{ fmtUSDT(a.fee) }}</td>
                   <td class="right">{{ fmtUSDT(a.reward) }}</td>
@@ -126,7 +190,13 @@ const active = computed(() =>
       <n-gi>
         <n-card title="Chu kì đang chạy" size="small">
           <div class="table-wrap">
-            <n-table v-if="active.length" :bordered="false" :single-line="false" striped size="small">
+            <n-table
+              v-if="active.length"
+              :bordered="false"
+              :single-line="false"
+              striped
+              size="small"
+            >
               <thead>
                 <tr>
                   <th>Tài khoản</th>
@@ -155,3 +225,17 @@ const active = computed(() =>
     </n-grid>
   </n-spin>
 </template>
+
+<style scoped>
+.rank {
+  margin-left: 6px;
+  font-size: 13px;
+}
+/* Tô viền trái nhấn cho ví ROI cao/thấp nhất */
+.n-table tbody tr.roi-best > td:first-child {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+.n-table tbody tr.roi-worst > td:first-child {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+</style>

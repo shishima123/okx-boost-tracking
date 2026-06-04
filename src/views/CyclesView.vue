@@ -39,6 +39,7 @@ import {
   clsColor,
   tagType,
   tagColorFromHex,
+  accountStatusInfo,
 } from '@/utils/format'
 
 const store = useBoostStore()
@@ -77,9 +78,34 @@ const rows = computed(() => {
 
 const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
 
+// Lọc tài khoản khi TẠO chu kì: luôn loại ví "bị hạn chế"; tuỳ chọn chỉ hiện ví "đang chạy".
+const onlyActive = ref(true)
+const createAccountOptions = computed(() =>
+  store.accounts
+    .map((a) => ({ name: a.name, status: accountStatusInfo(a.status).value }))
+    .filter((a) => a.status !== 'restricted')
+    .filter((a) => !onlyActive.value || a.status === 'active')
+    .map((a) => ({ label: a.name, value: a.name, status: a.status })),
+)
+// Số ví bị ẩn (hạn chế, hoặc đang nghỉ khi bật "chỉ ví đang chạy") — để báo cho người dùng.
+const hiddenAccountCount = computed(
+  () => store.accountNames.length - createAccountOptions.value.length,
+)
+
 // Hiển thị tên tài khoản theo màu badge trong dropdown / chip đã chọn
-const renderAccountLabel = (option) =>
-  h(AccountBadge, { name: option.value, size: 'small' })
+const renderAccountLabel = (option) => h(AccountBadge, { name: option.value, size: 'small' })
+// Như trên nhưng kèm tag trạng thái (dùng cho dropdown tạo chu kì)
+const renderCreateLabel = (option) =>
+  h('span', { style: 'display:inline-flex;align-items:center;gap:8px' }, [
+    h(AccountBadge, { name: option.value, size: 'small' }),
+    option.status && option.status !== 'active'
+      ? h(
+          NTag,
+          { size: 'tiny', bordered: false, type: accountStatusInfo(option.status).tag },
+          { default: () => accountStatusInfo(option.status).label },
+        )
+      : null,
+  ])
 const renderAccountTag = ({ option, handleClose }) =>
   h(
     NTag,
@@ -145,7 +171,7 @@ function openEdit(c) {
 }
 
 function selectAllAccounts() {
-  form.accounts = [...store.accountNames]
+  form.accounts = createAccountOptions.value.map((o) => o.value)
 }
 
 async function saveCycle() {
@@ -174,16 +200,29 @@ async function saveCycle() {
   showCycle.value = false
 }
 
-async function removeCycle(c) {
-  const n = store.rewards.filter((r) => r.cycleId === c.id).length
-  const ok = await confirmDialog({
-    title: 'Xoá chu kì',
-    content: n
-      ? `Xoá chu kì của "${c.account}"? (${n} phần thưởng liên kết sẽ KHÔNG bị xoá tự động)`
-      : `Xoá chu kì của "${c.account}"?`,
-    positiveText: 'Xoá',
-  })
-  if (ok) await store.deleteCycle(c.id)
+// ----- Xoá chu kì (có tuỳ chọn xoá kèm thưởng liên kết) -----
+const showDelCycle = ref(false)
+const delTarget = ref(null)
+const delWithRewards = ref(true)
+const delRewardCount = computed(() =>
+  delTarget.value ? store.rewards.filter((r) => r.cycleId === delTarget.value.id).length : 0,
+)
+
+function askRemoveCycle(c) {
+  delTarget.value = c
+  delWithRewards.value = true
+  showDelCycle.value = true
+}
+async function confirmRemoveCycle() {
+  const c = delTarget.value
+  if (!c) return
+  const ids =
+    delWithRewards.value && delRewardCount.value
+      ? store.rewards.filter((r) => r.cycleId === c.id).map((r) => r.id)
+      : []
+  await store.deleteCycleWithRewards(c.id, ids)
+  showDelCycle.value = false
+  delTarget.value = null
 }
 
 // ----- Thêm / sửa phần thưởng (qua component dùng chung) -----
@@ -408,7 +447,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                     <n-space :size="6" justify="end" :wrap="false">
                       <n-button size="tiny" secondary @click="openReward(c)">+ Thưởng</n-button>
                       <n-button size="tiny" quaternary @click="openEdit(c)">Sửa</n-button>
-                      <n-button size="tiny" quaternary type="error" @click="removeCycle(c)"
+                      <n-button size="tiny" quaternary type="error" @click="askRemoveCycle(c)"
                         >Xoá</n-button
                       >
                     </n-space>
@@ -471,6 +510,9 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         <template #label>
           <span class="label-row">
             Tài khoản ({{ form.accounts.length }} đã chọn)
+            <n-checkbox v-model:checked="onlyActive" style="font-weight: 400">
+              Chỉ ví đang chạy
+            </n-checkbox>
             <n-button text size="tiny" type="primary" @click="selectAllAccounts">
               Chọn tất cả
             </n-button>
@@ -478,8 +520,8 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
         </template>
         <n-select
           v-model:value="form.accounts"
-          :options="accountOptions"
-          :render-label="renderAccountLabel"
+          :options="createAccountOptions"
+          :render-label="renderCreateLabel"
           :render-tag="renderAccountTag"
           multiple
           filterable
@@ -487,6 +529,12 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
           max-tag-count="responsive"
           placeholder="Chọn 1 hoặc nhiều tài khoản"
         />
+        <template v-if="hiddenAccountCount" #feedback>
+          <n-text depth="3" style="font-size: 12px">
+            Đang ẩn {{ hiddenAccountCount }} ví (nghỉ / bị hạn chế). Bỏ chọn “Chỉ ví đang chạy” để
+            hiện ví đang nghỉ.
+          </n-text>
+        </template>
       </n-form-item>
       <n-space :size="12">
         <n-form-item label="Ngày bắt đầu" style="flex: 1">
@@ -530,6 +578,29 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     :cycle="rewardCycle"
     :reward="rewardEdit"
   />
+
+  <!-- Modal xoá chu kì (tuỳ chọn xoá kèm thưởng liên kết) -->
+  <n-modal v-model:show="showDelCycle" preset="card" title="Xoá chu kì" style="max-width: 420px">
+    <n-space vertical :size="14">
+      <n-text>
+        Xoá chu kì của
+        <AccountBadge v-if="delTarget" :name="delTarget.account" />
+        ?
+      </n-text>
+      <n-checkbox v-if="delRewardCount" v-model:checked="delWithRewards">
+        Xoá luôn {{ delRewardCount }} phần thưởng liên kết
+      </n-checkbox>
+      <n-text v-if="delRewardCount && !delWithRewards" depth="3" style="font-size: 12px">
+        Bỏ chọn: {{ delRewardCount }} phần thưởng sẽ thành “mồ côi” (không còn chu kì).
+      </n-text>
+    </n-space>
+    <template #footer>
+      <n-space justify="end">
+        <n-button @click="showDelCycle = false">Huỷ</n-button>
+        <n-button type="error" :loading="store.saving" @click="confirmRemoveCycle">Xoá</n-button>
+      </n-space>
+    </template>
+  </n-modal>
 
   <!-- Modal nhập thưởng nhanh cho cả chu kì -->
   <n-modal

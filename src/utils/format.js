@@ -128,3 +128,13 @@ export const clsColor = (cls) => CLS_COLORS[cls] || 'var(--text-dim)'
 // class màu -> type của n-tag (badge trạng thái)
 const CLS_TAG_TYPE = { green: 'success', yellow: 'warning', red: 'error', muted: 'default' }
 export const tagType = (cls) => CLS_TAG_TYPE[cls] || 'default'
+
+// ---- Trạng thái tài khoản (đang chạy / nghỉ / bị hạn chế) ----
+// value lưu trên account.status; thiếu/không rõ -> coi như 'active' để không phá hành vi cũ.
+export const ACCOUNT_STATUSES = [
+  { value: 'active', label: 'Đang chạy', cls: 'green', tag: 'success' },
+  { value: 'resting', label: 'Nghỉ', cls: 'muted', tag: 'default' },
+  { value: 'restricted', label: 'Bị hạn chế', cls: 'red', tag: 'error' },
+]
+export const accountStatusInfo = (s) =>
+  ACCOUNT_STATUSES.find((x) => x.value === s) || ACCOUNT_STATUSES[0]
