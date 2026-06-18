@@ -66,6 +66,11 @@ body {
   font-weight: 600;
 }
 
+/* Căn giữa mọi header bảng. !important để thắng text-align mà naive đặt cho th. */
+.n-table thead th {
+  text-align: center !important;
+}
+
 /* Mọi bảng (n-table): hover sáng lên. !important để thắng style striped của naive. */
 .n-table tbody tr:hover > td {
   background-color: var(--bg-hover) !important;

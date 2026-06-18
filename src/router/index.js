@@ -27,6 +27,12 @@ const routes = [
     meta: { title: 'Phần thưởng' },
   },
   {
+    path: '/planner',
+    name: 'planner',
+    component: () => import('@/views/TradePlannerView.vue'),
+    meta: { title: 'Gợi ý ngày trade' },
+  },
+  {
     path: '/accounts',
     name: 'accounts',
     component: () => import('@/views/AccountsView.vue'),
