@@ -21,6 +21,7 @@ import {
   NText,
   NRadioGroup,
   NRadioButton,
+  NPagination,
 } from 'naive-ui'
 import RewardModal from '@/components/RewardModal.vue'
 import CycleOverviewPanel from '@/components/CycleOverviewPanel.vue'
@@ -74,6 +75,21 @@ const rows = computed(() => {
         (b.startDate || '').localeCompare(a.startDate || '') ||
         names.indexOf(a.account) - names.indexOf(b.account),
     )
+})
+
+// ----- Phân trang (chế độ Danh sách) -----
+const page = ref(1)
+const pageSize = ref(20)
+const pageSizeOptions = [10, 20, 50, 100]
+
+const pagedRows = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return rows.value.slice(start, start + pageSize.value)
+})
+
+// Quay về trang 1 khi đổi bộ lọc / số dòng / số chu kì
+watch([statusFilter, showExpired, pageSize, () => rows.value.length], () => {
+  page.value = 1
 })
 
 const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
@@ -414,7 +430,7 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
               </tr>
             </thead>
             <tbody>
-              <template v-for="c in rows" :key="c.id">
+              <template v-for="c in pagedRows" :key="c.id">
                 <tr>
                   <td>
                     <n-button text size="tiny" @click="toggle(c.id)">
@@ -489,6 +505,19 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
                 ? 'Không có chu kì phù hợp. Thử bật “Hiện đã hết hạn” hoặc đổi bộ lọc.'
                 : 'Chưa có chu kì nào. Bấm “Tạo chu kì” để bắt đầu.'
             "
+          />
+        </div>
+        <div
+          v-if="rows.length > pageSizeOptions[0]"
+          style="display: flex; justify-content: flex-end; margin-top: 14px"
+        >
+          <n-pagination
+            v-model:page="page"
+            v-model:page-size="pageSize"
+            :item-count="rows.length"
+            :page-sizes="pageSizeOptions"
+            show-size-picker
+            size="small"
           />
         </div>
       </n-spin>
