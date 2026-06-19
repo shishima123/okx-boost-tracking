@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, h } from 'vue'
+import { computed, ref, h, watch } from 'vue'
 import {
   NCard,
   NTable,
@@ -13,6 +13,7 @@ import {
   NGi,
   NStatistic,
   NH2,
+  NPagination,
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
@@ -45,6 +46,20 @@ const rows = computed(() =>
 )
 
 const total = computed(() => rows.value.reduce((s, r) => s + r.amount, 0))
+
+const page = ref(1)
+const pageSize = ref(20)
+const pageSizeOptions = [10, 20, 50, 100]
+
+const pagedRows = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return rows.value.slice(start, start + pageSize.value)
+})
+
+// Quay về trang 1 khi lọc hoặc số dòng thay đổi
+watch([filterAccount, filterToken, pageSize], () => {
+  page.value = 1
+})
 
 async function remove(r) {
   const ok = await confirmDialog({
@@ -109,7 +124,7 @@ async function remove(r) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in rows" :key="r.id">
+            <tr v-for="r in pagedRows" :key="r.id">
               <td>{{ fmtDate(r.date) }}</td>
               <td><AccountBadge :name="r.account" /></td>
               <td class="muted">{{ cycleLabel[r.cycleId] || '—' }}</td>
@@ -128,6 +143,16 @@ async function remove(r) {
           </tbody>
         </n-table>
         <n-empty v-else description="Chưa có phần thưởng. Thêm từ trang Chu kì." />
+      </div>
+      <div v-if="rows.length > pageSizeOptions[0]" style="display: flex; justify-content: flex-end; margin-top: 14px">
+        <n-pagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :item-count="rows.length"
+          :page-sizes="pageSizeOptions"
+          show-size-picker
+          size="small"
+        />
       </div>
     </n-spin>
   </n-card>

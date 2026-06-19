@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   NGrid,
   NGi,
@@ -14,6 +14,7 @@ import {
   NSwitch,
   NText,
   NH2,
+  NModal,
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
 import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, clsColor, tagType } from '@/utils/format'
@@ -45,12 +46,17 @@ const roiRank = computed(() => {
 })
 
 // ----- Dữ liệu biểu đồ -----
+const CHART_MAX = 4
+
+// Lợi nhuận theo đợt: ngày mới nhất hiển thị trước
 const profitByBatch = computed(() =>
-  store.batches.map((b) => ({
-    label: fmtDate(b.startDate),
-    value: b.profit,
-    sub: ` · ${fmtPct(b.roi)}`,
-  })),
+  [...store.batches]
+    .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+    .map((b) => ({
+      label: fmtDate(b.startDate),
+      value: b.profit,
+      sub: ` · ${fmtPct(b.roi)}`,
+    })),
 )
 const rewardByToken = computed(() =>
   store.rewardsByToken.map((t) => ({
@@ -59,6 +65,12 @@ const rewardByToken = computed(() =>
     sub: ` · ${t.count} lần`,
   })),
 )
+
+// Modal "Xem thêm" — dùng chung cho cả hai biểu đồ
+const modal = ref({ show: false, title: '', items: [], signed: false })
+function openModal(title, items, signed) {
+  modal.value = { show: true, title, items, signed }
+}
 </script>
 
 <template>
@@ -121,14 +133,43 @@ const rewardByToken = computed(() =>
     <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
       <n-gi>
         <n-card title="Lợi nhuận theo đợt" size="small">
-          <BarList v-if="profitByBatch.length" :items="profitByBatch" signed :format="fmtUSDT" />
+          <BarList
+            v-if="profitByBatch.length"
+            :items="profitByBatch.slice(0, CHART_MAX)"
+            signed
+            :format="fmtUSDT"
+          />
           <n-empty v-else description="Chưa có đợt chu kì nào." />
+          <div v-if="profitByBatch.length > CHART_MAX" class="more">
+            <n-button
+              text
+              type="primary"
+              size="small"
+              @click="openModal('Lợi nhuận theo đợt', profitByBatch, true)"
+            >
+              Xem thêm ({{ profitByBatch.length }})
+            </n-button>
+          </div>
         </n-card>
       </n-gi>
       <n-gi>
         <n-card title="Thưởng theo token" size="small">
-          <BarList v-if="rewardByToken.length" :items="rewardByToken" :format="fmtUSDT" />
+          <BarList
+            v-if="rewardByToken.length"
+            :items="rewardByToken.slice(0, CHART_MAX)"
+            :format="fmtUSDT"
+          />
           <n-empty v-else description="Chưa có phần thưởng nào." />
+          <div v-if="rewardByToken.length > CHART_MAX" class="more">
+            <n-button
+              text
+              type="primary"
+              size="small"
+              @click="openModal('Thưởng theo token', rewardByToken, false)"
+            >
+              Xem thêm ({{ rewardByToken.length }})
+            </n-button>
+          </div>
         </n-card>
       </n-gi>
     </n-grid>
@@ -224,9 +265,23 @@ const rewardByToken = computed(() =>
       </n-gi>
     </n-grid>
   </n-spin>
+
+  <n-modal v-model:show="modal.show" preset="card" :title="modal.title" style="max-width: 560px">
+    <div class="modal-list">
+      <BarList :items="modal.items" :signed="modal.signed" :format="fmtUSDT" />
+    </div>
+  </n-modal>
 </template>
 
 <style scoped>
+.more {
+  margin-top: 12px;
+  text-align: center;
+}
+.modal-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
 .rank {
   margin-left: 6px;
   font-size: 13px;
