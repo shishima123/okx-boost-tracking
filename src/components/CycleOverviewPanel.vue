@@ -120,13 +120,14 @@ const rewardsInBatch = computed(() => {
 
 // ----- Chế độ sửa nhanh (inline, có Huỷ/Lưu) -----
 const editing = ref(false)
-const draft = reactive({}) // rewardId -> { date, token, amount }
+const draft = reactive({}) // rewardId -> { date, token, amount, estimated }
 
+function draftFrom(r) {
+  return { date: r.date || '', token: r.token || '', amount: r.amount, estimated: !!r.estimated }
+}
 function buildDraft() {
   for (const k of Object.keys(draft)) delete draft[k]
-  for (const r of rewardsInBatch.value) {
-    draft[r.id] = { date: r.date || '', token: r.token || '', amount: r.amount }
-  }
+  for (const r of rewardsInBatch.value) draft[r.id] = draftFrom(r)
 }
 function enterEdit() {
   buildDraft()
@@ -141,8 +142,7 @@ watch(selected, () => editing.value && cancelEdit())
 // Bổ sung draft cho thưởng mới phát sinh khi đang sửa
 watch(rewardsInBatch, (list) => {
   if (!editing.value) return
-  for (const r of list)
-    if (!draft[r.id]) draft[r.id] = { date: r.date || '', token: r.token || '', amount: r.amount }
+  for (const r of list) if (!draft[r.id]) draft[r.id] = draftFrom(r)
 })
 
 function isChanged(r) {
@@ -151,7 +151,8 @@ function isChanged(r) {
   return (
     (d.date || '') !== (r.date || '') ||
     (d.token || '') !== (r.token || '') ||
-    (Number(d.amount) || 0) !== (Number(r.amount) || 0)
+    (Number(d.amount) || 0) !== (Number(r.amount) || 0) ||
+    !!d.estimated !== !!r.estimated
   )
 }
 const changedCount = computed(() => rewardsInBatch.value.filter(isChanged).length)
@@ -166,7 +167,7 @@ async function saveEdit() {
       amount: Number(draft[r.id].amount) || 0,
       token: draft[r.id].token,
       note: r.note,
-      estimated: !!r.estimated,
+      estimated: !!draft[r.id].estimated,
     },
   }))
   if (!items.length) {
@@ -441,7 +442,9 @@ async function confirmRemoveCycle() {
                         Xoá
                       </n-button>
                     </n-space>
-                    <span v-else class="muted">—</span>
+                    <n-checkbox v-else v-model:checked="draft[r.id].estimated" size="small">
+                      ước lượng
+                    </n-checkbox>
                   </td>
                 </tr>
               </tbody>
