@@ -11,6 +11,7 @@ import {
   NTable,
   NTag,
   NButton,
+  NModal,
   NInput,
   NInputNumber,
   NDatePicker,
@@ -26,6 +27,13 @@ import { confirmDialog } from '@/composables/feedback'
 import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, tagType, clsColor } from '@/utils/format'
 
 const store = useBoostStore()
+
+// Khi truyền `startDate`, component hoạt động ở chế độ nhúng (trong modal):
+// hiển thị chi tiết đúng đợt đó và ẩn ô chọn đợt.
+const props = defineProps({
+  startDate: { type: String, default: null },
+})
+const embedded = computed(() => props.startDate != null)
 
 const accountIndex = computed(() => {
   const m = {}
@@ -56,12 +64,16 @@ const batchOptions = computed(() => {
     .filter((o) => !onlyActive.value || o.state === 'active')
 })
 
-const selected = ref(null)
+const internalSelected = ref(null)
+// Ở chế độ nhúng dùng đợt từ prop; ngược lại dùng đợt chọn qua dropdown.
+const selected = computed(() => (embedded.value ? props.startDate : internalSelected.value))
 // Chọn đợt đầu khi chưa chọn, hoặc khi đợt đang chọn bị lọc ra khỏi danh sách.
 watch(
   batchOptions,
   (opts) => {
-    if (!opts.some((o) => o.value === selected.value)) selected.value = opts[0]?.value ?? null
+    if (embedded.value) return
+    if (!opts.some((o) => o.value === internalSelected.value))
+      internalSelected.value = opts[0]?.value ?? null
   },
   { immediate: true },
 )
@@ -198,14 +210,39 @@ function openEdit(r) {
   rewardEdit.value = r
   rewardShow.value = true
 }
+
+// ----- Xoá ví (chu kì) trong đợt — tuỳ chọn xoá kèm thưởng liên kết -----
+const showDelCycle = ref(false)
+const delTarget = ref(null)
+const delWithRewards = ref(true)
+const delRewardCount = computed(() =>
+  delTarget.value ? store.rewards.filter((r) => r.cycleId === delTarget.value.id).length : 0,
+)
+
+function askRemoveCycle(c) {
+  delTarget.value = c
+  delWithRewards.value = true
+  showDelCycle.value = true
+}
+async function confirmRemoveCycle() {
+  const c = delTarget.value
+  if (!c) return
+  const ids =
+    delWithRewards.value && delRewardCount.value
+      ? store.rewards.filter((r) => r.cycleId === c.id).map((r) => r.id)
+      : []
+  await store.deleteCycleWithRewards(c.id, ids)
+  showDelCycle.value = false
+  delTarget.value = null
+}
 </script>
 
 <template>
-  <div>
-    <n-card size="small" style="margin-bottom: 16px">
+  <div :class="{ embedded }">
+    <n-card v-if="!embedded" size="small" style="margin-bottom: 16px">
       <n-space align="center" :size="16" :wrap="true">
         <n-select
-          v-model:value="selected"
+          v-model:value="internalSelected"
           :options="batchOptions"
           placeholder="Chọn đợt chu kì (theo ngày bắt đầu)"
           style="width: 360px; max-width: 100%"
@@ -290,8 +327,13 @@ function openEdit(r) {
                   <td class="right">{{ fmtUSDT(c.reward) }}</td>
                   <td class="right" :class="signClass(c.profit)">{{ fmtUSDT(c.profit) }}</td>
                   <td class="right" :class="signClass(c.profit)">{{ fmtPct(c.roi) }}</td>
-                  <td class="right">
-                    <n-button size="tiny" secondary @click="openAdd(c)">+ Thưởng</n-button>
+                  <td class="right nowrap">
+                    <n-space :size="6" justify="end" :wrap="false">
+                      <n-button size="tiny" secondary @click="openAdd(c)">+ Thưởng</n-button>
+                      <n-button size="tiny" quaternary type="error" @click="askRemoveCycle(c)">
+                        Xoá
+                      </n-button>
+                    </n-space>
                   </td>
                 </tr>
               </tbody>
@@ -414,7 +456,7 @@ function openEdit(r) {
           :description="
             onlyActive && store.cycles.length
               ? 'Không có chu kì đang hoạt động. Bỏ chọn “Chỉ hiện chu kì đang hoạt động” để xem các đợt đã kết thúc.'
-              : 'Chưa có chu kì. Hãy tạo chu kì ở chế độ Danh sách.'
+              : 'Chưa có chu kì. Bấm “Tạo chu kì” để bắt đầu.'
           "
         />
       </n-card>
@@ -426,10 +468,38 @@ function openEdit(r) {
       :cycle="rewardCycle"
       :reward="rewardEdit"
     />
+
+    <!-- Modal xoá ví (chu kì) — tuỳ chọn xoá kèm thưởng liên kết -->
+    <n-modal v-model:show="showDelCycle" preset="card" title="Xoá ví khỏi chu kì" style="max-width: 420px">
+      <n-space vertical :size="14">
+        <n-text>
+          Xoá ví
+          <AccountBadge v-if="delTarget" :name="delTarget.account" />
+          khỏi chu kì này?
+        </n-text>
+        <n-checkbox v-if="delRewardCount" v-model:checked="delWithRewards">
+          Xoá luôn {{ delRewardCount }} phần thưởng liên kết
+        </n-checkbox>
+        <n-text v-if="delRewardCount && !delWithRewards" depth="3" style="font-size: 12px">
+          Bỏ chọn: {{ delRewardCount }} phần thưởng sẽ thành “mồ côi” (không còn chu kì).
+        </n-text>
+      </n-space>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showDelCycle = false">Huỷ</n-button>
+          <n-button type="error" :loading="store.saving" @click="confirmRemoveCycle">Xoá</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <style scoped>
+/* Khi nhúng trong modal (nền trắng), thêm viền + nền nhạt để các card tách bạch rõ hơn */
+.embedded :deep(.n-card) {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
 tbody tr.changed td {
   background: rgba(240, 185, 11, 0.12);
 }

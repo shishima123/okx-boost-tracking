@@ -111,10 +111,11 @@ export const useBoostStore = defineStore('boost', {
       for (const c of state.cycles) {
         const k = c.startDate || ''
         if (!k) continue
-        if (!map[k]) map[k] = { startDate: k, count: 0, fee: 0, reward: 0 }
+        if (!map[k]) map[k] = { startDate: k, endDate: '', count: 0, fee: 0, reward: 0 }
         map[k].count++
         map[k].fee += c.fee
         map[k].reward += byCycle[c.id] || 0
+        if (c.endDate && c.endDate > map[k].endDate) map[k].endDate = c.endDate
       }
       return Object.values(map)
         .map((b) => ({

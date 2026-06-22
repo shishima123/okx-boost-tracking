@@ -48,15 +48,9 @@ const roiRank = computed(() => {
 // ----- Dữ liệu biểu đồ -----
 const CHART_MAX = 4
 
-// Lợi nhuận theo đợt: ngày mới nhất hiển thị trước
+// Lợi nhuận theo chu kì: ngày mới nhất hiển thị trước
 const profitByBatch = computed(() =>
-  [...store.batches]
-    .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
-    .map((b) => ({
-      label: fmtDate(b.startDate),
-      value: b.profit,
-      sub: ` · ${fmtPct(b.roi)}`,
-    })),
+  [...store.batches].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '')),
 )
 const rewardByToken = computed(() =>
   store.rewardsByToken.map((t) => ({
@@ -66,11 +60,14 @@ const rewardByToken = computed(() =>
   })),
 )
 
-// Modal "Xem thêm" — dùng chung cho cả hai biểu đồ
+// Modal "Xem thêm" — dùng cho biểu đồ thưởng theo token
 const modal = ref({ show: false, title: '', items: [], signed: false })
 function openModal(title, items, signed) {
   modal.value = { show: true, title, items, signed }
 }
+
+// Modal "Xem thêm" — bảng lợi nhuận theo chu kì
+const batchModal = ref(false)
 </script>
 
 <template>
@@ -132,43 +129,81 @@ function openModal(title, items, signed) {
 
     <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
       <n-gi>
-        <n-card title="Lợi nhuận theo đợt" size="small">
-          <BarList
-            v-if="profitByBatch.length"
-            :items="profitByBatch.slice(0, CHART_MAX)"
-            signed
-            :format="fmtUSDT"
-          />
-          <n-empty v-else description="Chưa có đợt chu kì nào." />
-          <div v-if="profitByBatch.length > CHART_MAX" class="more">
-            <n-button
-              text
-              type="primary"
+        <n-card title="Lợi nhuận theo chu kì" size="small">
+          <div class="table-wrap">
+            <n-table
+              v-if="profitByBatch.length"
+              :bordered="false"
+              :single-line="false"
+              striped
               size="small"
-              @click="openModal('Lợi nhuận theo đợt', profitByBatch, true)"
             >
+              <thead>
+                <tr>
+                  <th>Chu kì</th>
+                  <th class="right">Phí</th>
+                  <th class="right">Thưởng</th>
+                  <th class="right">Lợi nhuận</th>
+                  <th class="right">ROI</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in profitByBatch.slice(0, CHART_MAX)" :key="b.startDate">
+                  <td class="nowrap">
+                    {{ fmtDate(b.startDate) }}<span v-if="b.endDate"> - {{ fmtDate(b.endDate) }}</span>
+                  </td>
+                  <td class="right">{{ fmtUSDT(b.fee) }}</td>
+                  <td class="right">{{ fmtUSDT(b.reward) }}</td>
+                  <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+                    {{ fmtUSDT(b.profit) }}
+                  </td>
+                  <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+                    {{ fmtPct(b.roi) }}
+                  </td>
+                </tr>
+              </tbody>
+            </n-table>
+            <n-empty v-else description="Chưa có đợt chu kì nào." />
+          </div>
+          <div v-if="profitByBatch.length > CHART_MAX" class="more">
+            <n-button text type="primary" size="small" @click="batchModal = true">
               Xem thêm ({{ profitByBatch.length }})
             </n-button>
           </div>
         </n-card>
       </n-gi>
       <n-gi>
-        <n-card title="Thưởng theo token" size="small">
-          <BarList
-            v-if="rewardByToken.length"
-            :items="rewardByToken.slice(0, CHART_MAX)"
-            :format="fmtUSDT"
-          />
-          <n-empty v-else description="Chưa có phần thưởng nào." />
-          <div v-if="rewardByToken.length > CHART_MAX" class="more">
-            <n-button
-              text
-              type="primary"
+        <n-card title="Chu kì đang chạy" size="small">
+          <div class="table-wrap">
+            <n-table
+              v-if="active.length"
+              :bordered="false"
+              :single-line="false"
+              striped
               size="small"
-              @click="openModal('Thưởng theo token', rewardByToken, false)"
             >
-              Xem thêm ({{ rewardByToken.length }})
-            </n-button>
+              <thead>
+                <tr>
+                  <th>Tài khoản</th>
+                  <th class="right">Lợi nhuận</th>
+                  <th class="right">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in active" :key="c.id">
+                  <td><AccountBadge :name="c.account" /></td>
+                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
+                    {{ fmtUSDT(c.profit) }}
+                  </td>
+                  <td class="right">
+                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
+                      {{ c.status.label }}
+                    </n-tag>
+                  </td>
+                </tr>
+              </tbody>
+            </n-table>
+            <n-empty v-else description="Không có chu kì nào đang chạy." />
           </div>
         </n-card>
       </n-gi>
@@ -229,37 +264,22 @@ function openModal(title, items, signed) {
       </n-gi>
 
       <n-gi>
-        <n-card title="Chu kì đang chạy" size="small">
-          <div class="table-wrap">
-            <n-table
-              v-if="active.length"
-              :bordered="false"
-              :single-line="false"
-              striped
+        <n-card title="Thưởng theo token" size="small">
+          <BarList
+            v-if="rewardByToken.length"
+            :items="rewardByToken.slice(0, CHART_MAX)"
+            :format="fmtUSDT"
+          />
+          <n-empty v-else description="Chưa có phần thưởng nào." />
+          <div v-if="rewardByToken.length > CHART_MAX" class="more">
+            <n-button
+              text
+              type="primary"
               size="small"
+              @click="openModal('Thưởng theo token', rewardByToken, false)"
             >
-              <thead>
-                <tr>
-                  <th>Tài khoản</th>
-                  <th class="right">Lợi nhuận</th>
-                  <th class="right">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in active" :key="c.id">
-                  <td><AccountBadge :name="c.account" /></td>
-                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
-                    {{ fmtUSDT(c.profit) }}
-                  </td>
-                  <td class="right">
-                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
-                      {{ c.status.label }}
-                    </n-tag>
-                  </td>
-                </tr>
-              </tbody>
-            </n-table>
-            <n-empty v-else description="Không có chu kì nào đang chạy." />
+              Xem thêm ({{ rewardByToken.length }})
+            </n-button>
           </div>
         </n-card>
       </n-gi>
@@ -269,6 +289,42 @@ function openModal(title, items, signed) {
   <n-modal v-model:show="modal.show" preset="card" :title="modal.title" style="max-width: 560px">
     <div class="modal-list">
       <BarList :items="modal.items" :signed="modal.signed" :format="fmtUSDT" />
+    </div>
+  </n-modal>
+
+  <n-modal
+    v-model:show="batchModal"
+    preset="card"
+    title="Lợi nhuận theo chu kì"
+    style="max-width: 560px"
+  >
+    <div class="modal-list table-wrap">
+      <n-table :bordered="false" :single-line="false" striped size="small">
+        <thead>
+          <tr>
+            <th>Chu kì</th>
+            <th class="right">Phí</th>
+            <th class="right">Thưởng</th>
+            <th class="right">Lợi nhuận</th>
+            <th class="right">ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="b in profitByBatch" :key="b.startDate">
+            <td class="nowrap">
+                    {{ fmtDate(b.startDate) }}<span v-if="b.endDate"> - {{ fmtDate(b.endDate) }}</span>
+                  </td>
+            <td class="right">{{ fmtUSDT(b.fee) }}</td>
+            <td class="right">{{ fmtUSDT(b.reward) }}</td>
+            <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+              {{ fmtUSDT(b.profit) }}
+            </td>
+            <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+              {{ fmtPct(b.roi) }}
+            </td>
+          </tr>
+        </tbody>
+      </n-table>
     </div>
   </n-modal>
 </template>

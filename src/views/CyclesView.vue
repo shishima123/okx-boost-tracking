@@ -1,6 +1,5 @@
 <script setup>
 import { computed, h, reactive, ref, watch } from 'vue'
-import { useStorage } from '@vueuse/core'
 import {
   NCard,
   NTable,
@@ -19,11 +18,8 @@ import {
   NSpin,
   NH2,
   NText,
-  NRadioGroup,
-  NRadioButton,
   NPagination,
 } from 'naive-ui'
-import RewardModal from '@/components/RewardModal.vue'
 import CycleOverviewPanel from '@/components/CycleOverviewPanel.vue'
 import AccountBadge from '@/components/AccountBadge.vue'
 import { useBoostStore } from '@/stores/boost'
@@ -46,9 +42,6 @@ import {
 const store = useBoostStore()
 const defaults = getDefaults()
 
-// Lưu chế độ xem đã chọn vào localStorage ('list' | 'by-cycle')
-const viewMode = useStorage('okx-boost:cycles-view', 'list')
-
 const statusFilter = ref('all')
 const statusOptions = [
   { label: 'Tất cả trạng thái', value: 'all' },
@@ -56,41 +49,34 @@ const statusOptions = [
   { label: 'Đã kết thúc', value: 'ended' },
 ]
 
-// Mặc định ẩn chu kì đã hết hạn; checkbox để hiện lại (lưu localStorage)
-const showExpired = useStorage('okx-boost:cycles-show-expired', false)
+// ----- Danh sách chu kì (gom theo đợt = ngày bắt đầu) -----
+const batchList = computed(() =>
+  [...store.batches]
+    .map((b) => ({ ...b, status: cycleStatus(b.endDate) }))
+    .filter((b) => statusFilter.value === 'all' || b.status.state === statusFilter.value)
+    .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '')),
+)
 
-const rows = computed(() => {
-  const names = store.accountNames
-  return store.cyclesEnriched
-    .map((c) => ({ ...c, status: cycleStatus(c.endDate) }))
-    .filter((c) => {
-      if (statusFilter.value !== 'all' && c.status.state !== statusFilter.value) return false
-      // ẩn chu kì hết hạn trừ khi bật "Hiện đã hết hạn" hoặc đang lọc riêng nhóm hết hạn
-      if (c.status.state === 'ended' && !showExpired.value && statusFilter.value !== 'ended')
-        return false
-      return true
-    })
-    .sort(
-      (a, b) =>
-        (b.startDate || '').localeCompare(a.startDate || '') ||
-        names.indexOf(a.account) - names.indexOf(b.account),
-    )
-})
-
-// ----- Phân trang (chế độ Danh sách) -----
+// ----- Phân trang -----
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(10)
 const pageSizeOptions = [10, 20, 50, 100]
-
-const pagedRows = computed(() => {
+const pagedBatches = computed(() => {
   const start = (page.value - 1) * pageSize.value
-  return rows.value.slice(start, start + pageSize.value)
+  return batchList.value.slice(start, start + pageSize.value)
 })
-
-// Quay về trang 1 khi đổi bộ lọc / số dòng / số chu kì
-watch([statusFilter, showExpired, pageSize, () => rows.value.length], () => {
+// Quay về trang 1 khi đổi bộ lọc / số dòng / số đợt
+watch([statusFilter, pageSize, () => batchList.value.length], () => {
   page.value = 1
 })
+
+// ----- Modal chi tiết chu kì -----
+const showDetail = ref(false)
+const detailDate = ref(null)
+function openDetail(b) {
+  detailDate.value = b.startDate
+  showDetail.value = true
+}
 
 const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
 
@@ -139,12 +125,10 @@ const renderAccountTag = ({ option, handleClose }) =>
     { default: () => option.value },
   )
 
-// ----- Tạo / sửa chu kì -----
+// ----- Tạo chu kì -----
 const showCycle = ref(false)
-const editingId = ref(null)
 const form = reactive({
-  account: '', // dùng khi sửa (1 tài khoản)
-  accounts: [], // dùng khi tạo mới (nhiều tài khoản)
+  accounts: [], // nhiều tài khoản cùng lúc
   startDate: todayISO(),
   lengthDays: defaults.cycleLengthDays,
   fee: defaults.defaultFee,
@@ -152,36 +136,15 @@ const form = reactive({
 })
 
 const endPreview = computed(() => addDays(form.startDate, form.lengthDays))
-
-// Điều kiện cho phép Lưu tuỳ theo chế độ tạo / sửa
-const canSave = computed(() => (editingId.value ? !!form.account : form.accounts.length > 0))
+const canSave = computed(() => form.accounts.length > 0)
 
 function openCreate() {
-  editingId.value = null
   Object.assign(form, {
-    account: '',
     accounts: [],
     startDate: todayISO(),
     lengthDays: defaults.cycleLengthDays,
     fee: defaults.defaultFee,
     note: '',
-  })
-  showCycle.value = true
-}
-
-function openEdit(c) {
-  editingId.value = c.id
-  const len =
-    c.startDate && c.endDate
-      ? Math.round((new Date(c.endDate) - new Date(c.startDate)) / 86400000)
-      : defaults.cycleLengthDays
-  Object.assign(form, {
-    account: c.account,
-    accounts: [],
-    startDate: c.startDate || todayISO(),
-    lengthDays: len,
-    fee: c.fee,
-    note: c.note || '',
   })
   showCycle.value = true
 }
@@ -193,11 +156,9 @@ function selectAllAccounts() {
 async function saveCycle() {
   if (!canSave.value) return
   const ok = await confirmDialog({
-    title: editingId.value ? 'Lưu chu kì' : 'Tạo chu kì',
-    content: editingId.value
-      ? `Lưu thay đổi chu kì của "${form.account}"?`
-      : `Tạo ${form.accounts.length} chu kì mới?`,
-    positiveText: editingId.value ? 'Lưu' : 'Tạo',
+    title: 'Tạo chu kì',
+    content: `Tạo ${form.accounts.length} chu kì mới?`,
+    positiveText: 'Tạo',
     type: 'info',
   })
   if (!ok) return
@@ -207,65 +168,9 @@ async function saveCycle() {
     fee: Number(form.fee) || 0,
     note: form.note,
   }
-  if (editingId.value) {
-    await store.updateCycle(editingId.value, { account: form.account, ...base })
-  } else {
-    const items = form.accounts.map((account) => ({ account, ...base }))
-    await store.addCyclesBulk(items)
-  }
+  const items = form.accounts.map((account) => ({ account, ...base }))
+  await store.addCyclesBulk(items)
   showCycle.value = false
-}
-
-// ----- Xoá chu kì (có tuỳ chọn xoá kèm thưởng liên kết) -----
-const showDelCycle = ref(false)
-const delTarget = ref(null)
-const delWithRewards = ref(true)
-const delRewardCount = computed(() =>
-  delTarget.value ? store.rewards.filter((r) => r.cycleId === delTarget.value.id).length : 0,
-)
-
-function askRemoveCycle(c) {
-  delTarget.value = c
-  delWithRewards.value = true
-  showDelCycle.value = true
-}
-async function confirmRemoveCycle() {
-  const c = delTarget.value
-  if (!c) return
-  const ids =
-    delWithRewards.value && delRewardCount.value
-      ? store.rewards.filter((r) => r.cycleId === c.id).map((r) => r.id)
-      : []
-  await store.deleteCycleWithRewards(c.id, ids)
-  showDelCycle.value = false
-  delTarget.value = null
-}
-
-// ----- Thêm / sửa phần thưởng (qua component dùng chung) -----
-const rewardShow = ref(false)
-const rewardMode = ref('add')
-const rewardCycle = ref(null)
-const rewardEdit = ref(null)
-
-function openReward(c) {
-  rewardMode.value = 'add'
-  rewardCycle.value = c
-  rewardEdit.value = null
-  rewardShow.value = true
-}
-function openEditReward(r) {
-  rewardMode.value = 'edit'
-  rewardEdit.value = r
-  rewardShow.value = true
-}
-
-async function removeReward(r) {
-  const ok = await confirmDialog({
-    title: 'Xoá phần thưởng',
-    content: 'Xoá phần thưởng này?',
-    positiveText: 'Xoá',
-  })
-  if (ok) await store.deleteReward(r.id)
 }
 
 // ----- Nhập thưởng nhanh (nhiều ví cùng 1 chu kì) -----
@@ -352,38 +257,18 @@ async function saveBatch() {
   await store.addRewardsBulk(items)
   showBatch.value = false
 }
-
-// ----- Mở rộng xem thưởng (cho phép mở nhiều dòng) -----
-const expanded = ref([])
-const isExpanded = (id) => expanded.value.includes(id)
-function toggle(id) {
-  expanded.value = isExpanded(id) ? expanded.value.filter((x) => x !== id) : [...expanded.value, id]
-}
-const collapseAll = () => (expanded.value = [])
-const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
 </script>
 
 <template>
   <n-space justify="space-between" align="center" style="margin-bottom: 18px" :wrap="true">
-    <n-space :size="14" align="center">
-      <n-h2 style="margin: 0">🔄 Quản lý chu kì</n-h2>
-      <n-radio-group v-model:value="viewMode" size="small">
-        <n-radio-button value="list">Danh sách</n-radio-button>
-        <n-radio-button value="by-cycle">Theo chu kì</n-radio-button>
-      </n-radio-group>
-    </n-space>
+    <n-h2 style="margin: 0">🔄 Quản lý chu kì</n-h2>
     <n-space :size="10" align="center">
-      <!-- Chỉ liên quan chế độ Danh sách -->
-      <template v-if="viewMode === 'list'">
-        <n-checkbox v-model:checked="showExpired">Hiện đã hết hạn</n-checkbox>
-        <n-select
-          v-model:value="statusFilter"
-          :options="statusOptions"
-          size="small"
-          style="width: 168px"
-        />
-      </template>
-      <!-- Luôn hiện ở cả 2 chế độ -->
+      <n-select
+        v-model:value="statusFilter"
+        :options="statusOptions"
+        size="small"
+        style="width: 168px"
+      />
       <n-button secondary :disabled="!startDateOptions.length" @click="openBatch">
         ⚡ Nhập thưởng nhanh
       </n-button>
@@ -393,155 +278,107 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
     </n-space>
   </n-space>
 
-  <!-- Chế độ Theo chu kì -->
-  <CycleOverviewPanel v-if="viewMode === 'by-cycle'" />
+  <n-card v-if="!store.accountNames.length" size="small">
+    <n-empty description="Chưa có tài khoản nào.">
+      <template #extra>
+        <n-button size="small" @click="$router.push({ name: 'accounts' })">
+          Thêm tài khoản
+        </n-button>
+      </template>
+    </n-empty>
+  </n-card>
 
-  <!-- Chế độ Danh sách -->
-  <template v-else>
-    <n-card v-if="!store.accountNames.length" size="small">
-      <n-empty description="Chưa có tài khoản nào.">
-        <template #extra>
-          <n-button size="small" @click="$router.push({ name: 'accounts' })">
-            Thêm tài khoản
-          </n-button>
-        </template>
-      </n-empty>
-    </n-card>
-
-    <n-card v-else size="small">
-      <div v-if="expanded.length" class="table-toolbar">
-        <n-button quaternary size="small" @click="collapseAll">Đóng tất cả</n-button>
-      </div>
-      <n-spin :show="store.loading">
-        <div class="table-wrap">
-          <n-table v-if="rows.length" :bordered="false" :single-line="false" striped size="small">
-            <thead>
-              <tr>
-                <th>Tài khoản</th>
-                <th>Bắt đầu</th>
-                <th>Kết thúc</th>
-                <th class="right">Phí</th>
-                <th class="right">Thưởng</th>
-                <th class="right">Lợi nhuận</th>
-                <th class="right">ROI</th>
-                <th>Trạng thái</th>
-                <th>Còn lại (ngày)</th>
-                <th class="right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="c in pagedRows" :key="c.id">
-                <tr>
-                  <td>
-                    <n-button text size="tiny" @click="toggle(c.id)">
-                      {{ isExpanded(c.id) ? '▾' : '▸' }}
-                    </n-button>
-                    <AccountBadge :name="c.account" />
-                    <n-tag
-                      v-if="c.rewardCount"
-                      size="tiny"
-                      :bordered="false"
-                      type="success"
-                      style="margin-left: 8px"
-                    >
-                      {{ c.rewardCount }} thưởng
-                    </n-tag>
-                  </td>
-                  <td>{{ fmtDate(c.startDate) }}</td>
-                  <td>{{ fmtDate(c.endDate) }}</td>
-                  <td class="right">{{ fmtUSDT(c.fee) }}</td>
-                  <td class="right">{{ fmtUSDT(c.reward) }}</td>
-                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
-                    {{ fmtUSDT(c.profit) }}
-                  </td>
-                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
-                    {{ fmtPct(c.roi) }}
-                  </td>
-                  <td>
-                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
-                      {{ c.status.label }}
-                    </n-tag>
-                  </td>
-                  <td class="nowrap bold" :style="{ color: clsColor(c.status.leftCls) }">
-                    {{ c.status.left === null ? '—' : c.status.left }}
-                  </td>
-                  <td class="right nowrap">
-                    <n-space :size="6" justify="end" :wrap="false">
-                      <n-button size="tiny" secondary @click="openReward(c)">+ Thưởng</n-button>
-                      <n-button size="tiny" quaternary @click="openEdit(c)">Sửa</n-button>
-                      <n-button size="tiny" quaternary type="error" @click="askRemoveCycle(c)"
-                        >Xoá</n-button
-                      >
-                    </n-space>
-                  </td>
-                </tr>
-                <tr v-if="isExpanded(c.id)">
-                  <td colspan="10" class="sub-cell">
-                    <div v-if="rewardsOf(c.id).length" class="sub">
-                      <div v-for="r in rewardsOf(c.id)" :key="r.id" class="sub-item">
-                        <span>{{ fmtDate(r.date) }}</span>
-                        <span class="green">+{{ fmtUSDT(r.amount) }}</span>
-                        <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>
-                        <n-tag v-if="r.estimated" size="tiny" :bordered="false" type="warning">
-                          ước lượng
-                        </n-tag>
-                        <span class="muted flex1">{{ r.note }}</span>
-                        <n-button size="tiny" quaternary @click="openEditReward(r)">Sửa</n-button>
-                        <n-button size="tiny" quaternary type="error" @click="removeReward(r)">
-                          Xoá
-                        </n-button>
-                      </div>
-                    </div>
-                    <n-text v-else depth="3">Chưa có phần thưởng nào cho chu kì này.</n-text>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </n-table>
-          <n-empty
-            v-else
-            :description="
-              store.cyclesEnriched.length
-                ? 'Không có chu kì phù hợp. Thử bật “Hiện đã hết hạn” hoặc đổi bộ lọc.'
-                : 'Chưa có chu kì nào. Bấm “Tạo chu kì” để bắt đầu.'
-            "
-          />
-        </div>
-        <div
-          v-if="rows.length > pageSizeOptions[0]"
-          style="display: flex; justify-content: flex-end; margin-top: 14px"
+  <n-card v-else size="small">
+    <n-spin :show="store.loading">
+      <div class="table-wrap">
+        <n-table
+          v-if="batchList.length"
+          :bordered="false"
+          :single-line="false"
+          striped
+          size="small"
         >
-          <n-pagination
-            v-model:page="page"
-            v-model:page-size="pageSize"
-            :item-count="rows.length"
-            :page-sizes="pageSizeOptions"
-            show-size-picker
-            size="small"
-          />
-        </div>
-      </n-spin>
-    </n-card>
-  </template>
-
-  <!-- Modal tạo/sửa chu kì -->
-  <n-modal
-    v-model:show="showCycle"
-    preset="card"
-    :title="editingId ? 'Sửa chu kì' : 'Tạo chu kì mới'"
-    style="max-width: 460px"
-  >
-    <n-form :show-feedback="false" class="tight-form">
-      <!-- Sửa: 1 tài khoản -->
-      <n-form-item v-if="editingId" label="Tài khoản">
-        <n-select
-          v-model:value="form.account"
-          :options="accountOptions"
-          :render-label="renderAccountLabel"
+          <thead>
+            <tr>
+              <th>Chu kì</th>
+              <th class="right">Số ví</th>
+              <th class="right">Phí</th>
+              <th class="right">Thưởng</th>
+              <th class="right">Lợi nhuận</th>
+              <th class="right">ROI</th>
+              <th>Trạng thái</th>
+              <th class="right">Còn lại (ngày)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="b in pagedBatches"
+              :key="b.startDate"
+              class="row-click"
+              @click="openDetail(b)"
+            >
+              <td class="nowrap bold">{{ fmtDate(b.startDate) }} – {{ fmtDate(b.endDate) }}</td>
+              <td class="right">{{ b.count }}</td>
+              <td class="right">{{ fmtUSDT(b.fee) }}</td>
+              <td class="right">{{ fmtUSDT(b.reward) }}</td>
+              <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+                {{ fmtUSDT(b.profit) }}
+              </td>
+              <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
+                {{ fmtPct(b.roi) }}
+              </td>
+              <td>
+                <n-tag size="small" round :bordered="false" :type="tagType(b.status.cls)">
+                  {{ b.status.label }}
+                </n-tag>
+              </td>
+              <td class="nowrap bold" :style="{ color: clsColor(b.status.leftCls) }">
+                {{ b.status.left === null || b.status.state === 'ended' ? '—' : b.status.left }}
+              </td>
+            </tr>
+          </tbody>
+        </n-table>
+        <n-empty
+          v-else
+          :description="
+            store.cyclesEnriched.length
+              ? 'Không có chu kì phù hợp. Thử bật “Hiện đã hết hạn” hoặc đổi bộ lọc.'
+              : 'Chưa có chu kì nào. Bấm “Tạo chu kì” để bắt đầu.'
+          "
         />
-      </n-form-item>
-      <!-- Tạo mới: chọn nhiều tài khoản cùng lúc -->
-      <n-form-item v-else :show-feedback="!!hiddenAccountCount">
+      </div>
+      <div
+        v-if="batchList.length > pageSizeOptions[0]"
+        style="display: flex; justify-content: flex-end; margin-top: 14px"
+      >
+        <n-pagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :item-count="batchList.length"
+          :page-sizes="pageSizeOptions"
+          show-size-picker
+          size="small"
+        />
+      </div>
+    </n-spin>
+  </n-card>
+
+  <!-- Modal chi tiết chu kì -->
+  <n-modal
+    v-model:show="showDetail"
+    preset="card"
+    class="detail-modal"
+    :title="`Chu kì ${detailDate ? fmtDate(detailDate) : ''}`"
+    style="width: 92%; max-width: 1000px"
+  >
+    <CycleOverviewPanel :start-date="detailDate" />
+  </n-modal>
+
+  <!-- Modal tạo chu kì -->
+  <n-modal v-model:show="showCycle" preset="card" title="Tạo chu kì mới" style="max-width: 460px">
+    <n-form :show-feedback="false" class="tight-form">
+      <!-- Chọn nhiều tài khoản cùng lúc -->
+      <n-form-item :show-feedback="!!hiddenAccountCount">
         <template #label>
           <span class="label-row">
             Tài khoản ({{ form.accounts.length }} đã chọn)
@@ -600,39 +437,8 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
       <n-space justify="end">
         <n-button @click="showCycle = false">Huỷ</n-button>
         <n-button type="primary" :loading="store.saving" :disabled="!canSave" @click="saveCycle">
-          {{ editingId ? 'Lưu' : `Tạo ${form.accounts.length || ''} chu kì` }}
+          Tạo {{ form.accounts.length || '' }} chu kì
         </n-button>
-      </n-space>
-    </template>
-  </n-modal>
-
-  <!-- Modal thêm / sửa thưởng (component dùng chung) -->
-  <RewardModal
-    v-model:show="rewardShow"
-    :mode="rewardMode"
-    :cycle="rewardCycle"
-    :reward="rewardEdit"
-  />
-
-  <!-- Modal xoá chu kì (tuỳ chọn xoá kèm thưởng liên kết) -->
-  <n-modal v-model:show="showDelCycle" preset="card" title="Xoá chu kì" style="max-width: 420px">
-    <n-space vertical :size="14">
-      <n-text>
-        Xoá chu kì của
-        <AccountBadge v-if="delTarget" :name="delTarget.account" />
-        ?
-      </n-text>
-      <n-checkbox v-if="delRewardCount" v-model:checked="delWithRewards">
-        Xoá luôn {{ delRewardCount }} phần thưởng liên kết
-      </n-checkbox>
-      <n-text v-if="delRewardCount && !delWithRewards" depth="3" style="font-size: 12px">
-        Bỏ chọn: {{ delRewardCount }} phần thưởng sẽ thành “mồ côi” (không còn chu kì).
-      </n-text>
-    </n-space>
-    <template #footer>
-      <n-space justify="end">
-        <n-button @click="showDelCycle = false">Huỷ</n-button>
-        <n-button type="error" :loading="store.saving" @click="confirmRemoveCycle">Xoá</n-button>
       </n-space>
     </template>
   </n-modal>
@@ -724,26 +530,11 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
 </template>
 
 <style scoped>
-.table-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+.row-click {
+  cursor: pointer;
 }
-.sub-cell {
+.row-click:hover td {
   background: var(--bg-soft);
-}
-.sub {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sub-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.flex1 {
-  flex: 1;
 }
 .batch-list {
   display: flex;
@@ -782,5 +573,12 @@ const rewardsOf = (id) => store.rewards.filter((r) => r.cycleId === id)
 /* Modal (tạo chu kì / nhập thưởng nhanh): tắt feedback nhưng vẫn chừa khoảng cách giữa các ô */
 .tight-form :deep(.n-form-item) {
   margin-bottom: 14px;
+}
+</style>
+
+<!-- Modal được teleport ra ngoài component nên dùng style không scoped để tô nền -->
+<style>
+.detail-modal.n-card {
+  background: var(--bg);
 }
 </style>
