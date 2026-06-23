@@ -418,12 +418,23 @@ async function saveBatch() {
           />
         </n-form-item>
         <n-form-item label="Số ngày / chu kì" style="flex: 1">
-          <n-input-number v-model:value="form.lengthDays" :min="1" style="width: 100%" />
+          <n-input-number
+            v-model:value="form.lengthDays"
+            :min="1"
+            :input-props="{ inputmode: 'numeric' }"
+            style="width: 100%"
+          />
         </n-form-item>
       </n-space>
       <n-space :size="12">
         <n-form-item label="Phí ($)" style="flex: 1">
-          <n-input-number v-model:value="form.fee" :min="0" :step="0.01" style="width: 100%" />
+          <n-input-number
+            v-model:value="form.fee"
+            :min="0"
+            :step="0.01"
+            :input-props="{ inputmode: 'decimal' }"
+            style="width: 100%"
+          />
         </n-form-item>
         <n-form-item label="Ngày kết thúc (tự tính)" style="flex: 1">
           <n-input :value="fmtDate(endPreview)" disabled />
@@ -478,6 +489,7 @@ async function saveBatch() {
             v-model:value="bulkFill"
             :min="0"
             :step="0.01"
+            :input-props="{ inputmode: 'decimal' }"
             placeholder="0.00"
             style="flex: 1"
           />
@@ -499,6 +511,7 @@ async function saveBatch() {
             v-model:value="batchAmounts[c.id]"
             :min="0"
             :step="0.01"
+            :input-props="{ inputmode: 'decimal' }"
             placeholder="0.00"
             style="width: 150px"
           />

@@ -428,6 +428,7 @@ async function confirmRemoveCycle() {
                       v-model:value="draft[r.id].amount"
                       :min="0"
                       :step="0.01"
+                      :input-props="{ inputmode: 'decimal' }"
                       size="small"
                       style="width: 140px"
                     />

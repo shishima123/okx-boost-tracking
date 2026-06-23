@@ -158,7 +158,14 @@ const calendar = computed(() => {
       </n-space>
       <n-space align="center" :size="6">
         <n-text depth="3" style="font-size: 13px">Số ngày / chu kì</n-text>
-        <n-input-number v-model:value="cycleLength" :min="1" :max="60" size="small" style="width: 110px" />
+        <n-input-number
+          v-model:value="cycleLength"
+          :min="1"
+          :max="60"
+          :input-props="{ inputmode: 'numeric' }"
+          size="small"
+          style="width: 110px"
+        />
       </n-space>
       <n-button secondary size="small" @click="openCalendar()">📆 Xem lịch</n-button>
     </n-space>
