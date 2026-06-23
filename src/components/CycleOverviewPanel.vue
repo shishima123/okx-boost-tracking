@@ -504,8 +504,9 @@ async function confirmRemoveCycle() {
   background: var(--bg-card);
   border: 1px solid var(--border);
 }
-tbody tr.changed td {
-  background: rgba(240, 185, 11, 0.12);
+/* Hàng đang sửa: dùng !important để thắng nền striped của n-table (chỉ định cao hơn ở row chẵn) */
+:deep(.n-table tbody tr.changed td) {
+  background: rgba(240, 185, 11, 0.16) !important;
 }
 .meta-left {
   display: inline-flex;

@@ -408,8 +408,8 @@ async function saveBatch() {
           </n-text>
         </template>
       </n-form-item>
-      <n-space :size="12">
-        <n-form-item label="Ngày bắt đầu" style="flex: 1">
+      <div class="form-row">
+        <n-form-item label="Ngày bắt đầu">
           <n-date-picker
             v-model:formatted-value="form.startDate"
             value-format="yyyy-MM-dd"
@@ -417,7 +417,7 @@ async function saveBatch() {
             style="width: 100%"
           />
         </n-form-item>
-        <n-form-item label="Số ngày / chu kì" style="flex: 1">
+        <n-form-item label="Số ngày / chu kì">
           <n-input-number
             v-model:value="form.lengthDays"
             :min="1"
@@ -425,9 +425,9 @@ async function saveBatch() {
             style="width: 100%"
           />
         </n-form-item>
-      </n-space>
-      <n-space :size="12">
-        <n-form-item label="Phí ($)" style="flex: 1">
+      </div>
+      <div class="form-row">
+        <n-form-item label="Phí ($)">
           <n-input-number
             v-model:value="form.fee"
             :min="0"
@@ -436,10 +436,10 @@ async function saveBatch() {
             style="width: 100%"
           />
         </n-form-item>
-        <n-form-item label="Ngày kết thúc (tự tính)" style="flex: 1">
+        <n-form-item label="Ngày kết thúc (tự tính)">
           <n-input :value="fmtDate(endPreview)" disabled />
         </n-form-item>
-      </n-space>
+      </div>
       <n-form-item label="Ghi chú">
         <n-input v-model:value="form.note" placeholder="Tuỳ chọn" />
       </n-form-item>
@@ -469,8 +469,8 @@ async function saveBatch() {
           placeholder="Chọn đợt chu kì"
         />
       </n-form-item>
-      <n-space :size="12">
-        <n-form-item label="Ngày nhận" style="flex: 1">
+      <div class="form-row">
+        <n-form-item label="Ngày nhận">
           <n-date-picker
             v-model:formatted-value="bForm.date"
             value-format="yyyy-MM-dd"
@@ -478,48 +478,53 @@ async function saveBatch() {
             style="width: 100%"
           />
         </n-form-item>
-        <n-form-item label="Token / Loại thưởng" style="flex: 1">
+        <n-form-item label="Token / Loại thưởng">
           <n-input v-model:value="bForm.token" placeholder="VD: SLX, IRYS…" />
         </n-form-item>
-      </n-space>
+      </div>
 
-      <n-form-item label="Điền nhanh số tiền cho tất cả ví">
-        <n-space :size="8" :wrap="false" style="width: 100%">
-          <n-input-number
-            v-model:value="bulkFill"
-            :min="0"
-            :step="0.01"
-            :input-props="{ inputmode: 'decimal' }"
-            placeholder="0.00"
-            style="flex: 1"
-          />
-          <n-button :disabled="!batchRows.length" @click="applyFill">Áp dụng</n-button>
-        </n-space>
-      </n-form-item>
-
-      <div v-if="batchRows.length" class="batch-list">
-        <div class="batch-head muted">
-          <span>Tài khoản</span>
-          <span>Số tiền ($)</span>
+      <div v-if="batchRows.length" class="batch-section">
+        <div class="batch-fill">
+          <span class="muted small">Điền nhanh cho tất cả ví</span>
+          <div class="batch-fill-input">
+            <n-input-number
+              v-model:value="bulkFill"
+              :min="0"
+              :step="0.01"
+              :input-props="{ inputmode: 'decimal' }"
+              placeholder="0.00"
+              size="small"
+              style="flex: 1"
+            />
+            <n-button size="small" :disabled="!batchRows.length" @click="applyFill">
+              Áp dụng
+            </n-button>
+          </div>
         </div>
-        <div v-for="c in batchRows" :key="c.id" class="batch-row">
-          <span class="batch-acc">
-            <AccountBadge :name="c.account" />
-            <span v-if="c.reward" class="muted small">(đã có {{ fmtUSDT(c.reward) }})</span>
-          </span>
-          <n-input-number
-            v-model:value="batchAmounts[c.id]"
-            :min="0"
-            :step="0.01"
-            :input-props="{ inputmode: 'decimal' }"
-            placeholder="0.00"
-            style="width: 150px"
-          />
+        <div class="batch-list">
+          <div class="batch-head muted">
+            <span>Tài khoản</span>
+            <span>Số tiền ($)</span>
+          </div>
+          <div v-for="c in batchRows" :key="c.id" class="batch-row">
+            <span class="batch-acc">
+              <AccountBadge :name="c.account" />
+            </span>
+            <n-input-number
+              v-model:value="batchAmounts[c.id]"
+              :min="0"
+              :step="0.01"
+              :input-props="{ inputmode: 'decimal' }"
+              placeholder="0.00"
+              size="small"
+              style="width: 150px"
+            />
+          </div>
         </div>
       </div>
       <n-empty v-else size="small" description="Chọn một đợt chu kì để nhập." />
 
-      <n-form-item label="Ghi chú" style="margin-top: 12px">
+      <n-form-item label="Ghi chú" style="margin-top: 14px">
         <n-input v-model:value="bForm.note" placeholder="Tuỳ chọn (áp dụng cho tất cả)" />
       </n-form-item>
       <n-checkbox v-model:checked="bForm.estimated" style="margin-top: 12px">
@@ -549,13 +554,33 @@ async function saveBatch() {
 .row-click:hover td {
   background: var(--bg-soft);
 }
+.batch-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-soft);
+}
+.batch-fill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-fill-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 230px;
+}
 .batch-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
   max-height: 320px;
   overflow-y: auto;
-  padding: 4px 2px;
 }
 .batch-head,
 .batch-row {
@@ -586,6 +611,16 @@ async function saveBatch() {
 /* Modal (tạo chu kì / nhập thưởng nhanh): tắt feedback nhưng vẫn chừa khoảng cách giữa các ô */
 .tight-form :deep(.n-form-item) {
   margin-bottom: 14px;
+}
+
+/* Hai ô trên cùng một hàng, chia 50%-50% */
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+.form-row > :deep(.n-form-item) {
+  flex: 1;
+  min-width: 0;
 }
 </style>
 
