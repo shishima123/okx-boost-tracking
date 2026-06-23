@@ -12,6 +12,7 @@ const menuOptions = [
   { label: '🔄 Chu kì', key: 'cycles' },
   { label: '🎁 Phần thưởng', key: 'rewards' },
   { label: '📅 Gợi ý ngày trade', key: 'planner' },
+  { label: '🧰 Công cụ', key: 'tools' },
   { label: '👤 Tài khoản', key: 'accounts' },
   { label: '⚙️ Cài đặt', key: 'settings' },
 ]

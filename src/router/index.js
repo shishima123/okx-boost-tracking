@@ -33,6 +33,12 @@ const routes = [
     meta: { title: 'Gợi ý ngày trade' },
   },
   {
+    path: '/tools',
+    name: 'tools',
+    component: () => import('@/views/ToolsView.vue'),
+    meta: { title: 'Công cụ' },
+  },
+  {
     path: '/accounts',
     name: 'accounts',
     component: () => import('@/views/AccountsView.vue'),
