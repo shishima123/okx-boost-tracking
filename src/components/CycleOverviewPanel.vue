@@ -254,39 +254,8 @@ async function confirmRemoveCycle() {
 
     <n-spin :show="store.loading">
       <template v-if="selected && cyclesInBatch.length">
-        <n-grid
-          cols="2 s:4"
-          responsive="screen"
-          :x-gap="14"
-          :y-gap="14"
-          style="margin-bottom: 16px"
-        >
-          <n-gi>
-            <n-card size="small"><n-statistic label="Số ví" :value="batchSummary.count" /></n-card>
-          </n-gi>
-          <n-gi>
-            <n-card size="small"
-              ><n-statistic label="Tổng phí" :value="fmtUSDT(batchSummary.fee)"
-            /></n-card>
-          </n-gi>
-          <n-gi>
-            <n-card size="small"
-              ><n-statistic label="Tổng thưởng" :value="fmtUSDT(batchSummary.reward)"
-            /></n-card>
-          </n-gi>
-          <n-gi>
-            <n-card size="small">
-              <n-statistic label="Lợi nhuận">
-                <span :class="signClass(batchSummary.profit)">{{
-                  fmtUSDT(batchSummary.profit)
-                }}</span>
-              </n-statistic>
-            </n-card>
-          </n-gi>
-        </n-grid>
-
         <n-card size="small" style="margin-bottom: 16px">
-          <n-space :size="28" align="center" :wrap="true">
+          <div class="batch-meta">
             <span
               ><span class="muted">Bắt đầu:</span> <b>{{ fmtDate(batchMeta.start) }}</b></span
             >
@@ -305,7 +274,26 @@ async function confirmRemoveCycle() {
                 {{ batchMeta.status.detail }}
               </b>
             </span>
-          </n-space>
+          </div>
+
+          <n-grid cols="2 s:4" responsive="screen" :x-gap="14" :y-gap="14" class="batch-stats">
+            <n-gi>
+              <n-statistic label="Số ví" :value="batchSummary.count" />
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Tổng phí" :value="fmtUSDT(batchSummary.fee)" />
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Tổng thưởng" :value="fmtUSDT(batchSummary.reward)" />
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Lợi nhuận">
+                <span :class="signClass(batchSummary.profit)">{{
+                  fmtUSDT(batchSummary.profit)
+                }}</span>
+              </n-statistic>
+            </n-gi>
+          </n-grid>
         </n-card>
 
         <n-card title="Các ví trong chu kì" size="small" style="margin-bottom: 16px">
@@ -512,5 +500,18 @@ async function confirmRemoveCycle() {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+/* Header chu kì gộp: hàng meta (ngày/trạng thái) + lưới chỉ số */
+.batch-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 28px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-stats :deep(.n-statistic .n-statistic-value) {
+  font-size: 20px;
 }
 </style>
