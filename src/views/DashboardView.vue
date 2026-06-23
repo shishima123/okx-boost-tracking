@@ -32,19 +32,6 @@ const active = computed(() =>
     .sort((a, b) => a.status.left - b.status.left),
 )
 
-// ----- Xếp hạng ROI: ví lời nhất / lỗ nhất (chỉ xét ví có chu kì & có phí) -----
-const roiRank = computed(() => {
-  const elig = byAccount.value.filter((a) => a.cycles > 0 && a.fee > 0)
-  if (elig.length < 2) return { best: null, worst: null }
-  let best = elig[0]
-  let worst = elig[0]
-  for (const a of elig) {
-    if (a.roi > best.roi) best = a
-    if (a.roi < worst.roi) worst = a
-  }
-  return { best: best.name, worst: worst.name }
-})
-
 // ----- Dữ liệu biểu đồ -----
 const CHART_MAX = 4
 
@@ -231,20 +218,9 @@ const batchModal = ref(false)
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="a in byAccount"
-                  :key="a.name"
-                  :class="{
-                    'roi-best': a.name === roiRank.best,
-                    'roi-worst': a.name === roiRank.worst,
-                  }"
-                >
+                <tr v-for="a in byAccount" :key="a.name">
                   <td class="nowrap">
                     <AccountBadge :name="a.name" />
-                    <span v-if="a.name === roiRank.best" class="rank" title="ROI cao nhất">🥇</span>
-                    <span v-else-if="a.name === roiRank.worst" class="rank" title="ROI thấp nhất">
-                      ⚠️
-                    </span>
                   </td>
                   <td class="right">{{ a.cycles }}</td>
                   <td class="right">{{ fmtUSDT(a.fee) }}</td>
@@ -337,16 +313,5 @@ const batchModal = ref(false)
 .modal-list {
   max-height: 60vh;
   overflow-y: auto;
-}
-.rank {
-  margin-left: 6px;
-  font-size: 13px;
-}
-/* Tô viền trái nhấn cho ví ROI cao/thấp nhất */
-.n-table tbody tr.roi-best > td:first-child {
-  box-shadow: inset 3px 0 0 var(--green);
-}
-.n-table tbody tr.roi-worst > td:first-child {
-  box-shadow: inset 3px 0 0 var(--red);
 }
 </style>
