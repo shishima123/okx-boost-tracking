@@ -24,7 +24,16 @@ import RewardModal from '@/components/RewardModal.vue'
 import AccountBadge from '@/components/AccountBadge.vue'
 import { useBoostStore } from '@/stores/boost'
 import { confirmDialog } from '@/composables/feedback'
-import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, tagType, clsColor } from '@/utils/format'
+import {
+  fmtUSDT,
+  fmtPct,
+  fmtDate,
+  signClass,
+  cycleStatus,
+  tagType,
+  clsColor,
+  todayISO,
+} from '@/utils/format'
 
 const store = useBoostStore()
 
@@ -212,6 +221,55 @@ function openEdit(r) {
   rewardShow.value = true
 }
 
+// ----- Nhập thưởng nhanh cho cả đợt (chu kì cố định, không cho đổi) -----
+const showBatch = ref(false)
+const bForm = reactive({ date: todayISO(), token: '', note: '', estimated: false })
+const bulkFill = ref(null)
+const batchAmounts = reactive({}) // cycleId -> số tiền
+
+const batchFilledCount = computed(
+  () => cyclesInBatch.value.filter((c) => isFilled(batchAmounts[c.id])).length,
+)
+
+function isFilled(v) {
+  return v !== null && v !== undefined && v !== ''
+}
+
+function openBatch() {
+  Object.assign(bForm, { date: todayISO(), token: '', note: '', estimated: false })
+  bulkFill.value = null
+  for (const k of Object.keys(batchAmounts)) delete batchAmounts[k]
+  showBatch.value = true
+}
+
+function applyFill() {
+  for (const c of cyclesInBatch.value) batchAmounts[c.id] = bulkFill.value
+}
+
+async function saveBatch() {
+  const items = cyclesInBatch.value
+    .filter((c) => isFilled(batchAmounts[c.id]))
+    .map((c) => ({
+      cycleId: c.id,
+      account: c.account,
+      date: bForm.date,
+      amount: Number(batchAmounts[c.id]) || 0,
+      token: bForm.token,
+      note: bForm.note,
+      estimated: bForm.estimated,
+    }))
+  if (!items.length) return
+  const ok = await confirmDialog({
+    title: 'Nhập thưởng nhanh',
+    content: `Thêm ${items.length} phần thưởng cho đợt này?`,
+    positiveText: 'Thêm',
+    type: 'info',
+  })
+  if (!ok) return
+  await store.addRewardsBulk(items)
+  showBatch.value = false
+}
+
 // ----- Xoá ví (chu kì) trong đợt — tuỳ chọn xoá kèm thưởng liên kết -----
 const showDelCycle = ref(false)
 const delTarget = ref(null)
@@ -296,7 +354,11 @@ async function confirmRemoveCycle() {
           </n-grid>
         </n-card>
 
-        <n-card title="Các ví trong chu kì" size="small" style="margin-bottom: 16px">
+        <n-card size="small" style="margin-bottom: 16px">
+          <template #header>Các ví trong chu kì</template>
+          <template #header-extra>
+            <n-button size="small" secondary @click="openBatch">⚡ Nhập thưởng nhanh</n-button>
+          </template>
           <div class="table-wrap">
             <n-table :bordered="false" :single-line="false" striped size="small">
               <thead>
@@ -311,15 +373,15 @@ async function confirmRemoveCycle() {
               </thead>
               <tbody>
                 <tr v-for="c in cyclesInBatch" :key="c.id">
-                  <td><AccountBadge :name="c.account" /></td>
+                  <td class="acc-col"><AccountBadge :name="c.account" /></td>
                   <td class="right">{{ fmtUSDT(c.fee) }}</td>
                   <td class="right">{{ fmtUSDT(c.reward) }}</td>
                   <td class="right" :class="signClass(c.profit)">{{ fmtUSDT(c.profit) }}</td>
                   <td class="right" :class="signClass(c.profit)">{{ fmtPct(c.roi) }}</td>
-                  <td class="right nowrap">
-                    <n-space :size="6" justify="end" :wrap="false">
+                  <td class="nowrap">
+                    <n-space :size="6" justify="center" :wrap="false">
                       <n-button size="tiny" secondary @click="openAdd(c)">+ Thưởng</n-button>
-                      <n-button size="tiny" quaternary type="error" @click="askRemoveCycle(c)">
+                      <n-button size="tiny" secondary type="error" @click="askRemoveCycle(c)">
                         Xoá
                       </n-button>
                     </n-space>
@@ -377,7 +439,7 @@ async function confirmRemoveCycle() {
                   :key="r.id"
                   :class="{ changed: editing && isChanged(r) }"
                 >
-                  <td><AccountBadge :name="r.account" /></td>
+                  <td class="acc-col"><AccountBadge :name="r.account" /></td>
 
                   <!-- Ngày nhận -->
                   <td>
@@ -412,6 +474,7 @@ async function confirmRemoveCycle() {
                   <!-- Số tiền -->
                   <td>
                     <n-input-number
+                      :show-button="false"
                       v-if="editing"
                       v-model:value="draft[r.id].amount"
                       :min="0"
@@ -424,10 +487,10 @@ async function confirmRemoveCycle() {
                   </td>
 
                   <td class="muted">{{ r.note }}</td>
-                  <td class="right nowrap">
-                    <n-space v-if="!editing" :size="6" justify="end" :wrap="false">
-                      <n-button size="tiny" quaternary @click="openEdit(r)">Sửa</n-button>
-                      <n-button size="tiny" quaternary type="error" @click="removeReward(r)">
+                  <td class="nowrap">
+                    <n-space v-if="!editing" :size="6" justify="center" :wrap="false">
+                      <n-button size="tiny" secondary @click="openEdit(r)">Sửa</n-button>
+                      <n-button size="tiny" secondary type="error" @click="removeReward(r)">
                         Xoá
                       </n-button>
                     </n-space>
@@ -461,6 +524,100 @@ async function confirmRemoveCycle() {
       :reward="rewardEdit"
     />
 
+    <!-- Modal nhập thưởng nhanh cho cả đợt (chu kì cố định) -->
+    <n-modal
+      v-model:show="showBatch"
+      preset="card"
+      title="⚡ Nhập thưởng nhanh theo chu kì"
+      style="max-width: 540px"
+    >
+      <n-space vertical :size="14">
+        <div>
+          <div class="muted small" style="margin-bottom: 6px">Chu kì (đã chọn sẵn)</div>
+          <n-input
+            :value="`${fmtDate(batchMeta.start)} – ${fmtDate(batchMeta.end)} · ${batchSummary.count} ví`"
+            disabled
+          />
+        </div>
+        <div class="batch-fields">
+          <div>
+            <div class="muted small" style="margin-bottom: 6px">Ngày nhận</div>
+            <n-date-picker
+              v-model:formatted-value="bForm.date"
+              value-format="yyyy-MM-dd"
+              type="date"
+              style="width: 100%"
+            />
+          </div>
+          <div>
+            <div class="muted small" style="margin-bottom: 6px">Token / Loại thưởng</div>
+            <n-input v-model:value="bForm.token" placeholder="VD: SLX, IRYS…" />
+          </div>
+        </div>
+
+        <div class="batch-section">
+          <div class="batch-fill">
+            <span class="muted small">Điền nhanh cho tất cả ví</span>
+            <div class="batch-fill-input">
+              <n-input-number
+                :show-button="false"
+                v-model:value="bulkFill"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                placeholder="0.00"
+                size="small"
+                style="flex: 1"
+              />
+              <n-button size="small" @click="applyFill">Áp dụng</n-button>
+            </div>
+          </div>
+          <div class="batch-list">
+            <div class="batch-head muted">
+              <span>Tài khoản</span>
+              <span>Số tiền ($)</span>
+            </div>
+            <div v-for="c in cyclesInBatch" :key="c.id" class="batch-row">
+              <span class="batch-acc">
+                <AccountBadge :name="c.account" />
+              </span>
+              <n-input-number
+                :show-button="false"
+                v-model:value="batchAmounts[c.id]"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                placeholder="0.00"
+                size="small"
+                style="width: 150px"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="muted small" style="margin-bottom: 6px">Ghi chú</div>
+          <n-input v-model:value="bForm.note" placeholder="Tuỳ chọn (áp dụng cho tất cả)" />
+        </div>
+        <n-checkbox v-model:checked="bForm.estimated">
+          Đánh dấu tất cả là thưởng ước lượng (chưa chính thức)
+        </n-checkbox>
+      </n-space>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showBatch = false">Huỷ</n-button>
+          <n-button
+            type="primary"
+            :loading="store.saving"
+            :disabled="!batchFilledCount"
+            @click="saveBatch"
+          >
+            Lưu {{ batchFilledCount || '' }} thưởng
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
     <!-- Modal xoá ví (chu kì) — tuỳ chọn xoá kèm thưởng liên kết -->
     <n-modal v-model:show="showDelCycle" preset="card" title="Xoá ví khỏi chu kì" style="max-width: 420px">
       <n-space vertical :size="14">
@@ -492,6 +649,13 @@ async function confirmRemoveCycle() {
   background: var(--bg-card);
   border: 1px solid var(--border);
 }
+/* Căn giữa nội dung bảng; riêng cột tài khoản căn trái (header vẫn center theo rule chung) */
+.table-wrap :deep(td) {
+  text-align: center !important;
+}
+.table-wrap :deep(td.acc-col) {
+  text-align: left !important;
+}
 /* Hàng đang sửa: dùng !important để thắng nền striped của n-table (chỉ định cao hơn ở row chẵn) */
 :deep(.n-table tbody tr.changed td) {
   background: rgba(240, 185, 11, 0.16) !important;
@@ -513,5 +677,63 @@ async function confirmRemoveCycle() {
 }
 .batch-stats :deep(.n-statistic .n-statistic-value) {
   font-size: 20px;
+}
+
+/* ----- Nhập thưởng nhanh ----- */
+.small {
+  font-size: 11px;
+}
+.batch-fields {
+  display: flex;
+  gap: 12px;
+}
+.batch-fields > * {
+  flex: 1;
+  min-width: 0;
+}
+.batch-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+.batch-fill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-fill-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 230px;
+}
+.batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.batch-head,
+.batch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.batch-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-acc {
+  flex: 1;
 }
 </style>

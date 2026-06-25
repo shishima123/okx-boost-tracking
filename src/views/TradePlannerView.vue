@@ -159,6 +159,7 @@ const calendar = computed(() => {
       <n-space align="center" :size="6">
         <n-text depth="3" style="font-size: 13px">Số ngày / chu kì</n-text>
         <n-input-number
+          :show-button="false"
           v-model:value="cycleLength"
           :min="1"
           :max="60"
@@ -266,7 +267,7 @@ const calendar = computed(() => {
               </n-tag>
             </td>
             <td class="right">
-              <n-button size="tiny" quaternary @click="openCalendar(row.iso)">📆 Xem</n-button>
+              <n-button size="tiny" secondary @click="openCalendar(row.iso)">📆 Xem</n-button>
             </td>
           </tr>
         </tbody>
@@ -283,6 +284,10 @@ const calendar = computed(() => {
 .table-wrap :deep(th.center),
 .table-wrap :deep(td.center) {
   text-align: center;
+}
+/* Căn giữa toàn bộ nội dung trong bảng */
+.table-wrap :deep(td) {
+  text-align: center !important;
 }
 
 /* ----- Lịch chu kì ----- */

@@ -69,6 +69,7 @@ function saveDefaults() {
       <n-space :size="14">
         <n-form-item label="Số ngày / chu kì" style="flex: 1">
           <n-input-number
+            :show-button="false"
             v-model:value="defaults.cycleLengthDays"
             :min="1"
             :input-props="{ inputmode: 'numeric' }"
@@ -77,6 +78,7 @@ function saveDefaults() {
         </n-form-item>
         <n-form-item label="Phí mặc định ($)" style="flex: 1">
           <n-input-number
+            :show-button="false"
             v-model:value="defaults.defaultFee"
             :min="0"
             :step="0.01"

@@ -171,17 +171,17 @@ async function remove(a) {
             >
               <td class="center muted">{{ i + 1 }}</td>
               <td class="handle" title="Kéo để sắp xếp">⠿</td>
-              <td><AccountBadge :name="a.name" /></td>
+              <td class="acc-col"><AccountBadge :name="a.name" /></td>
               <td>
                 <n-tag size="small" round :bordered="false" :type="accountStatusInfo(a.status).tag">
                   {{ accountStatusInfo(a.status).label }}
                 </n-tag>
               </td>
               <td class="muted">{{ a.note }}</td>
-              <td class="right nowrap">
-                <n-space :size="6" justify="end" :wrap="false">
-                  <n-button size="tiny" quaternary @click="openEdit(a)">Sửa</n-button>
-                  <n-button size="tiny" quaternary type="error" @click="remove(a)">Xoá</n-button>
+              <td class="nowrap">
+                <n-space :size="6" justify="center" :wrap="false">
+                  <n-button size="tiny" secondary @click="openEdit(a)">Sửa</n-button>
+                  <n-button size="tiny" secondary type="error" @click="remove(a)">Xoá</n-button>
                 </n-space>
               </td>
             </tr>
@@ -234,6 +234,13 @@ async function remove(a) {
 </template>
 
 <style scoped>
+/* Căn giữa nội dung bảng; riêng cột tên tài khoản căn trái (header vẫn center) */
+.table-wrap :deep(td) {
+  text-align: center !important;
+}
+.table-wrap :deep(td.acc-col) {
+  text-align: left !important;
+}
 .drag-row.dragging {
   opacity: 0.5;
   background: var(--bg-soft);

@@ -178,7 +178,7 @@ const batchModal = ref(false)
               </thead>
               <tbody>
                 <tr v-for="c in active" :key="c.id">
-                  <td><AccountBadge :name="c.account" /></td>
+                  <td class="acc-col"><AccountBadge :name="c.account" /></td>
                   <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
                     {{ fmtUSDT(c.profit) }}
                   </td>
@@ -219,7 +219,7 @@ const batchModal = ref(false)
               </thead>
               <tbody>
                 <tr v-for="a in byAccount" :key="a.name">
-                  <td class="nowrap">
+                  <td class="nowrap acc-col">
                     <AccountBadge :name="a.name" />
                   </td>
                   <td class="right">{{ a.cycles }}</td>
@@ -306,6 +306,16 @@ const batchModal = ref(false)
 </template>
 
 <style scoped>
+/* Căn giữa toàn bộ nội dung trong các bảng */
+.table-wrap :deep(th),
+.table-wrap :deep(td) {
+  text-align: center !important;
+}
+/* Cột tài khoản căn trái */
+.table-wrap :deep(th.acc-col),
+.table-wrap :deep(td.acc-col) {
+  text-align: left !important;
+}
 .more {
   margin-top: 12px;
   text-align: center;

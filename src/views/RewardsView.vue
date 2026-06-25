@@ -126,7 +126,7 @@ async function remove(r) {
           <tbody>
             <tr v-for="r in pagedRows" :key="r.id">
               <td>{{ fmtDate(r.date) }}</td>
-              <td><AccountBadge :name="r.account" /></td>
+              <td class="acc-col"><AccountBadge :name="r.account" /></td>
               <td class="muted">{{ cycleLabel[r.cycleId] || '—' }}</td>
               <td>
                 <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>
@@ -137,7 +137,7 @@ async function remove(r) {
               <td class="right green">+{{ fmtUSDT(r.amount) }}</td>
               <td class="muted">{{ r.note }}</td>
               <td class="right">
-                <n-button size="tiny" quaternary type="error" @click="remove(r)">Xoá</n-button>
+                <n-button size="tiny" secondary type="error" @click="remove(r)">Xoá</n-button>
               </td>
             </tr>
           </tbody>
@@ -157,3 +157,16 @@ async function remove(r) {
     </n-spin>
   </n-card>
 </template>
+
+<style scoped>
+/* Căn giữa toàn bộ nội dung trong bảng phần thưởng */
+.table-wrap :deep(th),
+.table-wrap :deep(td) {
+  text-align: center !important;
+}
+/* Cột tài khoản căn trái */
+.table-wrap :deep(th.acc-col),
+.table-wrap :deep(td.acc-col) {
+  text-align: left !important;
+}
+</style>

@@ -419,6 +419,7 @@ async function saveBatch() {
         </n-form-item>
         <n-form-item label="Số ngày / chu kì">
           <n-input-number
+            :show-button="false"
             v-model:value="form.lengthDays"
             :min="1"
             :input-props="{ inputmode: 'numeric' }"
@@ -429,6 +430,7 @@ async function saveBatch() {
       <div class="form-row">
         <n-form-item label="Phí ($)">
           <n-input-number
+            :show-button="false"
             v-model:value="form.fee"
             :min="0"
             :step="0.01"
@@ -488,6 +490,7 @@ async function saveBatch() {
           <span class="muted small">Điền nhanh cho tất cả ví</span>
           <div class="batch-fill-input">
             <n-input-number
+              :show-button="false"
               v-model:value="bulkFill"
               :min="0"
               :step="0.01"
@@ -511,6 +514,7 @@ async function saveBatch() {
               <AccountBadge :name="c.account" />
             </span>
             <n-input-number
+              :show-button="false"
               v-model:value="batchAmounts[c.id]"
               :min="0"
               :step="0.01"
@@ -548,6 +552,11 @@ async function saveBatch() {
 </template>
 
 <style scoped>
+/* Căn giữa toàn bộ nội dung trong bảng chu kì */
+.table-wrap :deep(th),
+.table-wrap :deep(td) {
+  text-align: center !important;
+}
 .row-click {
   cursor: pointer;
 }
@@ -558,7 +567,7 @@ async function saveBatch() {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  background: var(--bg-soft);
+  background: #fff;
 }
 .batch-fill {
   display: flex;

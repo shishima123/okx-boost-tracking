@@ -27,6 +27,7 @@ function fillFinalToInitial() {
       <n-space vertical :size="14">
         <n-form-item label="Số tiền ban đầu ($)">
           <n-input-number
+            :show-button="false"
             v-model:value="form.initial"
             :min="0"
             :step="0.01"
@@ -38,6 +39,7 @@ function fillFinalToInitial() {
 
         <n-form-item label="Phí trade ($)">
           <n-input-number
+            :show-button="false"
             v-model:value="form.fee"
             :min="0"
             :step="0.01"
