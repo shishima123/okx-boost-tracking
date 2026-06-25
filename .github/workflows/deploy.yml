@@ -26,13 +26,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          # Node 24 đi kèm npm 11 — khớp với package-lock.json (tạo bởi npm 11),
-          # tránh lỗi "npm ci out of sync" khi runner dùng npm 10
           node-version: 24
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # Dùng `npm install` thay vì `npm ci`: package-lock.json được tạo trên Windows
+        # nên npm prune các optional dep theo nền tảng (vd @emnapi/* của binding wasm
+        # rolldown), khiến `npm ci` trên runner Linux báo "missing from lock file".
+        # `npm install` giải lại cây phụ thuộc cho đúng nền tảng Linux nên tránh lỗi này.
+        run: npm install
 
       - name: Build
         # base path = /<tên-repo>/ để chạy đúng trên GitHub Pages project site
