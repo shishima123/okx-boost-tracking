@@ -4,6 +4,13 @@ import { defineStore } from 'pinia'
 import * as repo from '@/services/repository'
 import { toastError, toastSuccess } from '@/composables/feedback'
 import { tsMillis } from '@/utils/format'
+import {
+  computeRewardsByCycle,
+  computeSummary,
+  computeByAccount,
+  computeBatches,
+  computeRewardsByToken,
+} from '@/utils/stats'
 
 const byCreatedAt = (a, b) => tsMillis(a.createdAt) - tsMillis(b.createdAt)
 
@@ -22,21 +29,12 @@ export const useBoostStore = defineStore('boost', {
   getters: {
     // Tổng thưởng theo chu kì (tất cả phần thưởng)
     rewardsByCycle(state) {
-      const map = {}
-      for (const r of state.rewards) {
-        map[r.cycleId] = (map[r.cycleId] || 0) + r.amount
-      }
-      return map
+      return computeRewardsByCycle(state.rewards, true)
     },
 
     // Tổng thưởng theo chu kì — bỏ thưởng "ước lượng" khi tắt includeEstimated
     visibleRewardsByCycle(state) {
-      const map = {}
-      for (const r of state.rewards) {
-        if (!this.includeEstimated && r.estimated) continue
-        map[r.cycleId] = (map[r.cycleId] || 0) + r.amount
-      }
-      return map
+      return computeRewardsByCycle(state.rewards, this.includeEstimated)
     },
 
     cyclesEnriched(state) {
@@ -56,87 +54,21 @@ export const useBoostStore = defineStore('boost', {
     },
 
     summary(state) {
-      const byCycle = this.includeEstimated ? this.rewardsByCycle : this.visibleRewardsByCycle
-      let totalFee = 0
-      let totalReward = 0
-      for (const c of state.cycles) {
-        totalFee += c.fee
-        totalReward += byCycle[c.id] || 0
-      }
-      const profit = totalReward - totalFee
-      // Số chu kì = số đợt (ngày bắt đầu unique), không phải số record
-      const cycleCount = new Set(state.cycles.map((c) => c.startDate).filter(Boolean)).size
-      return {
-        totalFee,
-        totalReward,
-        profit,
-        roi: totalFee ? profit / totalFee : 0,
-        cycleCount,
-        accountCount: this.accounts.length,
-      }
+      return computeSummary(state.accounts, state.cycles, state.rewards, this.includeEstimated)
     },
 
     byAccount(state) {
-      const byCycle = this.includeEstimated ? this.rewardsByCycle : this.visibleRewardsByCycle
-      // Thứ tự tài khoản theo order (kéo-thả); tài khoản chỉ có trong chu kì xếp cuối
-      const order = state.accounts.map((a) => a.name)
-      const rank = (name) => {
-        const i = order.indexOf(name)
-        return i === -1 ? Infinity : i
-      }
-      const names = new Set([...order, ...state.cycles.map((c) => c.account)])
-      return [...names]
-        .filter(Boolean)
-        .map((name) => {
-          const list = state.cycles.filter((c) => c.account === name)
-          const fee = list.reduce((s, c) => s + c.fee, 0)
-          const reward = list.reduce((s, c) => s + (byCycle[c.id] || 0), 0)
-          const profit = reward - fee
-          return {
-            name,
-            cycles: list.length,
-            fee,
-            reward,
-            profit,
-            roi: fee ? profit / fee : 0,
-          }
-        })
-        .sort((a, b) => rank(a.name) - rank(b.name))
+      return computeByAccount(state.accounts, state.cycles, state.rewards, this.includeEstimated)
     },
 
     // Tổng hợp theo "đợt" (ngày bắt đầu) — dùng cho biểu đồ lợi nhuận theo đợt.
     batches(state) {
-      const byCycle = this.includeEstimated ? this.rewardsByCycle : this.visibleRewardsByCycle
-      const map = {}
-      for (const c of state.cycles) {
-        const k = c.startDate || ''
-        if (!k) continue
-        if (!map[k]) map[k] = { startDate: k, endDate: '', count: 0, fee: 0, reward: 0 }
-        map[k].count++
-        map[k].fee += c.fee
-        map[k].reward += byCycle[c.id] || 0
-        if (c.endDate && c.endDate > map[k].endDate) map[k].endDate = c.endDate
-      }
-      return Object.values(map)
-        .map((b) => ({
-          ...b,
-          profit: b.reward - b.fee,
-          roi: b.fee ? (b.reward - b.fee) / b.fee : 0,
-        }))
-        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+      return computeBatches(state.cycles, state.rewards, this.includeEstimated)
     },
 
     // Tổng thưởng theo token — dùng cho biểu đồ phân bổ thưởng.
     rewardsByToken(state) {
-      const map = {}
-      for (const r of state.rewards) {
-        if (!this.includeEstimated && r.estimated) continue
-        const t = r.token || '(không rõ)'
-        if (!map[t]) map[t] = { token: t, amount: 0, count: 0 }
-        map[t].amount += r.amount
-        map[t].count++
-      }
-      return Object.values(map).sort((a, b) => b.amount - a.amount)
+      return computeRewardsByToken(state.rewards, this.includeEstimated)
     },
 
     accountNames(state) {

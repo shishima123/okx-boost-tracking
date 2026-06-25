@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
 import {
   NGrid,
   NGi,
@@ -8,6 +9,7 @@ import {
   NTable,
   NTag,
   NButton,
+  NButtonGroup,
   NSpin,
   NEmpty,
   NSpace,
@@ -15,16 +17,79 @@ import {
   NText,
   NH2,
   NModal,
+  NDatePicker,
 } from 'naive-ui'
 import { useBoostStore } from '@/stores/boost'
-import { fmtUSDT, fmtPct, fmtDate, signClass, cycleStatus, clsColor, tagType } from '@/utils/format'
+import {
+  fmtUSDT,
+  fmtPct,
+  fmtDate,
+  signClass,
+  cycleStatus,
+  clsColor,
+  tagType,
+  todayISO,
+  addDays,
+} from '@/utils/format'
+import {
+  computeSummary,
+  computeByAccount,
+  computeBatches,
+  computeRewardsByToken,
+} from '@/utils/stats'
 import AccountBadge from '@/components/AccountBadge.vue'
 import BarList from '@/components/BarList.vue'
+import ProfitTrendChart from '@/components/charts/ProfitTrendChart.vue'
+import FeeRewardChart from '@/components/charts/FeeRewardChart.vue'
+import RoiTrendChart from '@/components/charts/RoiTrendChart.vue'
+import TokenDoughnutChart from '@/components/charts/TokenDoughnutChart.vue'
 
 const store = useBoostStore()
-const summary = computed(() => store.summary)
-const byAccount = computed(() => store.byAccount)
 
+// ----- Lọc theo khoảng ngày (theo startDate của chu kì) -----
+// null = tất cả; ngược lại [fromISO, toISO]
+const range = useStorage('okx_boost_dash_range', null)
+
+const hasRange = computed(() => !!(range.value && range.value[0] && range.value[1]))
+const rangeLabel = computed(() =>
+  hasRange.value ? `${fmtDate(range.value[0])} – ${fmtDate(range.value[1])}` : 'Tất cả',
+)
+
+function setPreset(key) {
+  const today = todayISO()
+  if (key === 'all') range.value = null
+  else if (key === 'month') range.value = [today.slice(0, 7) + '-01', today]
+  else if (key === '30') range.value = [addDays(today, -29), today]
+  else if (key === '90') range.value = [addDays(today, -89), today]
+}
+
+const filteredCycles = computed(() => {
+  if (!hasRange.value) return store.cycles
+  const [from, to] = range.value
+  return store.cycles.filter((c) => c.startDate && c.startDate >= from && c.startDate <= to)
+})
+const filteredCycleIds = computed(() => new Set(filteredCycles.value.map((c) => c.id)))
+const filteredRewards = computed(() => {
+  if (!hasRange.value) return store.rewards
+  return store.rewards.filter((r) => filteredCycleIds.value.has(r.cycleId))
+})
+
+// ----- Thống kê (theo bộ lọc) -----
+const summary = computed(() =>
+  computeSummary(store.accounts, filteredCycles.value, filteredRewards.value, store.includeEstimated),
+)
+const byAccount = computed(() =>
+  computeByAccount(store.accounts, filteredCycles.value, filteredRewards.value, store.includeEstimated),
+)
+// Đợt theo thứ tự thời gian tăng dần — dùng cho các biểu đồ xu hướng
+const batchesAsc = computed(() =>
+  computeBatches(filteredCycles.value, filteredRewards.value, store.includeEstimated),
+)
+const tokens = computed(() =>
+  computeRewardsByToken(filteredRewards.value, store.includeEstimated),
+)
+
+// Chu kì đang chạy — KHÔNG lọc theo khoảng ngày (luôn phản ánh thực tế hiện tại)
 const active = computed(() =>
   store.cyclesEnriched
     .map((c) => ({ ...c, status: cycleStatus(c.endDate) }))
@@ -32,15 +97,13 @@ const active = computed(() =>
     .sort((a, b) => a.status.left - b.status.left),
 )
 
-// ----- Dữ liệu biểu đồ -----
+// ----- Dữ liệu bảng "Xem thêm" -----
 const CHART_MAX = 4
 
-// Lợi nhuận theo chu kì: ngày mới nhất hiển thị trước
-const profitByBatch = computed(() =>
-  [...store.batches].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '')),
-)
+// Lợi nhuận theo chu kì: ngày mới nhất hiển thị trước (bảng)
+const profitByBatch = computed(() => [...batchesAsc.value].reverse())
 const rewardByToken = computed(() =>
-  store.rewardsByToken.map((t) => ({
+  tokens.value.map((t) => ({
     label: t.token,
     value: t.amount,
     sub: ` · ${t.count} lần`,
@@ -73,6 +136,28 @@ const batchModal = ref(false)
       </n-button>
     </n-space>
   </n-space>
+
+  <!-- Bộ lọc khoảng ngày (theo ngày bắt đầu chu kì) -->
+  <n-card size="small" style="margin-bottom: 18px">
+    <n-space align="center" :size="12" :wrap="true">
+      <n-text depth="3" style="font-size: 13px">Khoảng thời gian</n-text>
+      <n-button-group size="small">
+        <n-button :type="!hasRange ? 'primary' : 'default'" @click="setPreset('all')">Tất cả</n-button>
+        <n-button @click="setPreset('month')">Tháng này</n-button>
+        <n-button @click="setPreset('30')">30 ngày</n-button>
+        <n-button @click="setPreset('90')">90 ngày</n-button>
+      </n-button-group>
+      <n-date-picker
+        v-model:formatted-value="range"
+        value-format="yyyy-MM-dd"
+        type="daterange"
+        size="small"
+        clearable
+        style="width: 260px"
+      />
+      <n-text depth="3" style="font-size: 12px">Đang xem: <b>{{ rangeLabel }}</b></n-text>
+    </n-space>
+  </n-card>
 
   <n-spin :show="store.loading">
     <n-grid cols="2 s:3 l:6" responsive="screen" :x-gap="14" :y-gap="14">
@@ -114,83 +199,52 @@ const batchModal = ref(false)
       </n-gi>
     </n-grid>
 
+    <!-- Biểu đồ xu hướng -->
     <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
       <n-gi>
-        <n-card title="Lợi nhuận theo chu kì" size="small">
-          <div class="table-wrap">
-            <n-table
-              v-if="profitByBatch.length"
-              :bordered="false"
-              :single-line="false"
-              striped
-              size="small"
-            >
-              <thead>
-                <tr>
-                  <th>Chu kì</th>
-                  <th class="right">Phí</th>
-                  <th class="right">Thưởng</th>
-                  <th class="right">Lợi nhuận</th>
-                  <th class="right">ROI</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="b in profitByBatch.slice(0, CHART_MAX)" :key="b.startDate">
-                  <td class="nowrap">
-                    {{ fmtDate(b.startDate) }}<span v-if="b.endDate"> - {{ fmtDate(b.endDate) }}</span>
-                  </td>
-                  <td class="right">{{ fmtUSDT(b.fee) }}</td>
-                  <td class="right">{{ fmtUSDT(b.reward) }}</td>
-                  <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
-                    {{ fmtUSDT(b.profit) }}
-                  </td>
-                  <td class="right" :style="{ color: clsColor(signClass(b.profit)) }">
-                    {{ fmtPct(b.roi) }}
-                  </td>
-                </tr>
-              </tbody>
-            </n-table>
-            <n-empty v-else description="Chưa có đợt chu kì nào." />
-          </div>
-          <div v-if="profitByBatch.length > CHART_MAX" class="more">
+        <n-card title="Lợi nhuận tích lũy" size="small">
+          <ProfitTrendChart v-if="batchesAsc.length" :batches="batchesAsc" />
+          <n-empty v-else description="Chưa có đợt chu kì nào." />
+          <div v-if="profitByBatch.length" class="more">
             <n-button text type="primary" size="small" @click="batchModal = true">
-              Xem thêm ({{ profitByBatch.length }})
+              Xem bảng chi tiết ({{ profitByBatch.length }})
             </n-button>
           </div>
         </n-card>
       </n-gi>
       <n-gi>
-        <n-card title="Chu kì đang chạy" size="small">
-          <div class="table-wrap">
-            <n-table
-              v-if="active.length"
-              :bordered="false"
-              :single-line="false"
-              striped
+        <n-card title="Phí vs Thưởng theo đợt" size="small">
+          <FeeRewardChart v-if="batchesAsc.length" :batches="batchesAsc" />
+          <n-empty v-else description="Chưa có đợt chu kì nào." />
+        </n-card>
+      </n-gi>
+    </n-grid>
+
+    <n-grid cols="1 l:2" responsive="screen" :x-gap="16" :y-gap="16" style="margin-top: 18px">
+      <n-gi>
+        <n-card title="ROI theo đợt" size="small">
+          <RoiTrendChart v-if="batchesAsc.length" :batches="batchesAsc" />
+          <n-empty v-else description="Chưa có đợt chu kì nào." />
+        </n-card>
+      </n-gi>
+      <n-gi>
+        <n-card title="Thưởng theo token" size="small">
+          <TokenDoughnutChart v-if="tokens.length > 1" :tokens="tokens" />
+          <BarList
+            v-else-if="tokens.length"
+            :items="rewardByToken"
+            :format="fmtUSDT"
+          />
+          <n-empty v-else description="Chưa có phần thưởng nào." />
+          <div v-if="rewardByToken.length > CHART_MAX" class="more">
+            <n-button
+              text
+              type="primary"
               size="small"
+              @click="openModal('Thưởng theo token', rewardByToken, false)"
             >
-              <thead>
-                <tr>
-                  <th>Tài khoản</th>
-                  <th class="right">Lợi nhuận</th>
-                  <th class="right">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in active" :key="c.id">
-                  <td class="acc-col"><AccountBadge :name="c.account" /></td>
-                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
-                    {{ fmtUSDT(c.profit) }}
-                  </td>
-                  <td class="right">
-                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
-                      {{ c.status.label }}
-                    </n-tag>
-                  </td>
-                </tr>
-              </tbody>
-            </n-table>
-            <n-empty v-else description="Không có chu kì nào đang chạy." />
+              Xem thêm ({{ rewardByToken.length }})
+            </n-button>
           </div>
         </n-card>
       </n-gi>
@@ -240,22 +294,43 @@ const batchModal = ref(false)
       </n-gi>
 
       <n-gi>
-        <n-card title="Thưởng theo token" size="small">
-          <BarList
-            v-if="rewardByToken.length"
-            :items="rewardByToken.slice(0, CHART_MAX)"
-            :format="fmtUSDT"
-          />
-          <n-empty v-else description="Chưa có phần thưởng nào." />
-          <div v-if="rewardByToken.length > CHART_MAX" class="more">
-            <n-button
-              text
-              type="primary"
+        <n-card size="small">
+          <template #header>
+            <n-space align="center" :size="8">
+              <span>Chu kì đang chạy</span>
+              <n-text depth="3" style="font-size: 11px">(không theo bộ lọc)</n-text>
+            </n-space>
+          </template>
+          <div class="table-wrap">
+            <n-table
+              v-if="active.length"
+              :bordered="false"
+              :single-line="false"
+              striped
               size="small"
-              @click="openModal('Thưởng theo token', rewardByToken, false)"
             >
-              Xem thêm ({{ rewardByToken.length }})
-            </n-button>
+              <thead>
+                <tr>
+                  <th>Tài khoản</th>
+                  <th class="right">Lợi nhuận</th>
+                  <th class="right">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in active" :key="c.id">
+                  <td class="acc-col"><AccountBadge :name="c.account" /></td>
+                  <td class="right" :style="{ color: clsColor(signClass(c.profit)) }">
+                    {{ fmtUSDT(c.profit) }}
+                  </td>
+                  <td class="right">
+                    <n-tag size="small" round :bordered="false" :type="tagType(c.status.cls)">
+                      {{ c.status.label }}
+                    </n-tag>
+                  </td>
+                </tr>
+              </tbody>
+            </n-table>
+            <n-empty v-else description="Không có chu kì nào đang chạy." />
           </div>
         </n-card>
       </n-gi>
