@@ -64,9 +64,10 @@ function setPreset(key) {
 }
 
 const filteredCycles = computed(() => {
-  if (!hasRange.value) return store.cycles
+  // Dùng cyclesEnriched để tên tài khoản (group theo tài khoản) luôn là tên hiện tại.
+  if (!hasRange.value) return store.cyclesEnriched
   const [from, to] = range.value
-  return store.cycles.filter((c) => c.startDate && c.startDate >= from && c.startDate <= to)
+  return store.cyclesEnriched.filter((c) => c.startDate && c.startDate >= from && c.startDate <= to)
 })
 const filteredCycleIds = computed(() => new Set(filteredCycles.value.map((c) => c.id)))
 const filteredRewards = computed(() => {

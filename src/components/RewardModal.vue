@@ -64,7 +64,7 @@ async function save() {
   if (props.mode === 'edit') {
     await store.updateReward(props.reward.id, {
       cycleId: props.reward.cycleId,
-      account: props.reward.account,
+      accountId: props.reward.accountId,
       date: form.date,
       amount: Number(form.amount) || 0,
       token: form.token,
@@ -74,7 +74,7 @@ async function save() {
   } else {
     await store.addReward({
       cycleId: props.cycle.id,
-      account: props.cycle.account,
+      accountId: props.cycle.accountId,
       date: form.date,
       amount: Number(form.amount) || 0,
       token: form.token,

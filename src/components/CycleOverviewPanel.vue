@@ -118,7 +118,7 @@ const batchMeta = computed(() => {
 
 const rewardsInBatch = computed(() => {
   const ids = new Set(cyclesInBatch.value.map((c) => c.id))
-  return store.rewards
+  return store.rewardsEnriched
     .filter((r) => ids.has(r.cycleId))
     .sort(
       (a, b) =>
@@ -171,7 +171,7 @@ async function saveEdit() {
     id: r.id,
     data: {
       cycleId: r.cycleId,
-      account: r.account,
+      accountId: r.accountId,
       date: draft[r.id].date,
       amount: Number(draft[r.id].amount) || 0,
       token: draft[r.id].token,
@@ -251,7 +251,7 @@ async function saveBatch() {
     .filter((c) => isFilled(batchAmounts[c.id]))
     .map((c) => ({
       cycleId: c.id,
-      account: c.account,
+      accountId: c.accountId,
       date: bForm.date,
       amount: Number(batchAmounts[c.id]) || 0,
       token: bForm.token,

@@ -14,6 +14,13 @@ import {
 
 const byCreatedAt = (a, b) => tsMillis(a.createdAt) - tsMillis(b.createdAt)
 
+// Tên tài khoản hiển thị cho 1 chu kì/phần thưởng: ưu tiên tra theo accountId (luôn cập nhật),
+// fallback về tên cũ đã lưu (bản ghi chưa di trú), cuối cùng là nhãn "đã xoá".
+function resolveAccountName(item, byId) {
+  if (item.accountId && byId[item.accountId]) return byId[item.accountId].name
+  return item.account || (item.accountId ? '(tài khoản đã xoá)' : '')
+}
+
 export const useBoostStore = defineStore('boost', {
   state: () => ({
     accounts: [],
@@ -37,15 +44,31 @@ export const useBoostStore = defineStore('boost', {
       return computeRewardsByCycle(state.rewards, this.includeEstimated)
     },
 
+    // Map id tài khoản -> object tài khoản (để suy ra tên/màu hiện tại từ accountId)
+    accountById(state) {
+      const m = {}
+      for (const a of state.accounts) m[a.id] = a
+      return m
+    },
+
     cyclesEnriched(state) {
       const byCycle = this.rewardsByCycle
+      const byId = this.accountById
       return state.cycles.map((c) => {
         const reward = byCycle[c.id] || 0
         const profit = reward - c.fee
         const roi = c.fee ? profit / c.fee : 0
         const rewardCount = state.rewards.filter((r) => r.cycleId === c.id).length
-        return { ...c, reward, profit, roi, rewardCount }
+        // Tên tài khoản luôn suy ra từ accountId (đồng bộ khi đổi tên); fallback tên cũ đã lưu.
+        const account = resolveAccountName(c, byId)
+        return { ...c, account, reward, profit, roi, rewardCount }
       })
+    },
+
+    // Phần thưởng kèm tên tài khoản suy ra động từ accountId (đồng bộ khi đổi tên).
+    rewardsEnriched(state) {
+      const byId = this.accountById
+      return state.rewards.map((r) => ({ ...r, account: resolveAccountName(r, byId) }))
     },
 
     // Số phần thưởng đang ở trạng thái ước lượng
@@ -211,6 +234,36 @@ export const useBoostStore = defineStore('boost', {
     },
     deleteReward(id) {
       return this._run(() => repo.deleteReward(id), 'Đã xoá phần thưởng.')
+    },
+
+    // Di trú dữ liệu cũ: gán accountId cho các chu kì/thưởng còn tham chiếu theo TÊN.
+    // Khớp tên -> id (tên trùng: tài khoản đầu tiên theo thứ tự thắng). Trả về số liệu để báo cáo.
+    async migrateAccountRefs() {
+      const nameToId = {}
+      for (const a of this.accounts) if (!(a.name in nameToId)) nameToId[a.name] = a.id
+
+      const updates = []
+      const unmatched = new Set()
+      const collect = (col, list) => {
+        for (const it of list) {
+          if (it.accountId) continue // đã có id
+          if (it.account && nameToId[it.account]) {
+            updates.push({ col, id: it.id, accountId: nameToId[it.account] })
+          } else if (it.account) {
+            unmatched.add(it.account)
+          }
+        }
+      }
+      collect('cycles', this.cycles)
+      collect('rewards', this.rewards)
+
+      if (updates.length) {
+        await this._run(
+          () => repo.setAccountIdsBatch(updates),
+          `Đã gán accountId cho ${updates.length} bản ghi.`,
+        )
+      }
+      return { updated: updates.length, unmatched: [...unmatched] }
     },
   },
 })

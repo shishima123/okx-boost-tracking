@@ -15,12 +15,39 @@ import {
 import { useBoostStore } from '@/stores/boost'
 import { authState, logout } from '@/composables/auth'
 import { getDefaults, setDefaults } from '@/config'
-import { toastSuccess } from '@/composables/feedback'
+import { toastSuccess, toastError, confirmDialog } from '@/composables/feedback'
 
 const router = useRouter()
 const store = useBoostStore()
 
 const defaults = ref(getDefaults())
+
+const migrating = ref(false)
+async function migrateRefs() {
+  const ok = await confirmDialog({
+    title: 'Di trú tham chiếu tài khoản',
+    content:
+      'Gán accountId cho các chu kì/phần thưởng cũ (đang tham chiếu theo tên) để đổi tên tài khoản tự đồng bộ. Khớp theo tên hiện tại.',
+    positiveText: 'Di trú',
+    type: 'info',
+  })
+  if (!ok) return
+  migrating.value = true
+  try {
+    const { updated, unmatched } = await store.migrateAccountRefs()
+    if (!updated && !unmatched.length) {
+      toastSuccess('Dữ liệu đã ở dạng mới, không cần di trú.')
+    } else if (unmatched.length) {
+      toastError(
+        `Đã gán ${updated} bản ghi. ${unmatched.length} tên không khớp tài khoản nào: ${unmatched.join(', ')}`,
+      )
+    } else {
+      toastSuccess(`Đã gán accountId cho ${updated} bản ghi.`)
+    }
+  } finally {
+    migrating.value = false
+  }
+}
 
 const configured = !!import.meta.env.VITE_FIREBASE_PROJECT_ID
 
@@ -91,7 +118,18 @@ function saveDefaults() {
     <n-button type="primary" @click="saveDefaults">Lưu mặc định</n-button>
   </n-card>
 
-  <n-card title="3. Phiên đăng nhập" size="small" style="max-width: 640px">
+  <n-card title="3. Bảo trì dữ liệu" size="small" style="margin-bottom: 16px; max-width: 640px">
+    <n-space vertical :size="10">
+      <n-text depth="3">
+        Chuyển các chu kì/phần thưởng cũ sang tham chiếu tài khoản theo
+        <n-text code>accountId</n-text> thay vì theo tên. Sau khi di trú, đổi tên tài khoản sẽ tự
+        đồng bộ ở mọi nơi. Chỉ cần chạy một lần.
+      </n-text>
+      <n-button :loading="migrating" @click="migrateRefs">Di trú tham chiếu tài khoản</n-button>
+    </n-space>
+  </n-card>
+
+  <n-card title="4. Phiên đăng nhập" size="small" style="max-width: 640px">
     <n-space align="center" justify="space-between">
       <n-text depth="3">Đang đăng nhập: {{ authState.email || '—' }}</n-text>
       <n-button type="error" secondary @click="doLogout">Đăng xuất</n-button>

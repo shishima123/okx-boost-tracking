@@ -84,10 +84,10 @@ const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n,
 const onlyActive = ref(true)
 const createAccountOptions = computed(() =>
   store.accounts
-    .map((a) => ({ name: a.name, status: accountStatusInfo(a.status).value }))
+    .map((a) => ({ id: a.id, name: a.name, status: accountStatusInfo(a.status).value }))
     .filter((a) => a.status !== 'restricted')
     .filter((a) => !onlyActive.value || a.status === 'active')
-    .map((a) => ({ label: a.name, value: a.name, status: a.status })),
+    .map((a) => ({ label: a.name, value: a.id, status: a.status })),
 )
 // Số ví bị ẩn (hạn chế, hoặc đang nghỉ khi bật "chỉ ví đang chạy") — để báo cho người dùng.
 const hiddenAccountCount = computed(
@@ -99,7 +99,7 @@ const renderAccountLabel = (option) => h(AccountBadge, { name: option.value, siz
 // Như trên nhưng kèm tag trạng thái (dùng cho dropdown tạo chu kì)
 const renderCreateLabel = (option) =>
   h('span', { style: 'display:inline-flex;align-items:center;gap:8px' }, [
-    h(AccountBadge, { name: option.value, size: 'small' }),
+    h(AccountBadge, { name: option.label, size: 'small' }),
     option.status && option.status !== 'active'
       ? h(
           NTag,
@@ -116,13 +116,13 @@ const renderAccountTag = ({ option, handleClose }) =>
       round: true,
       bordered: false,
       closable: true,
-      color: tagColorFromHex(store.accountColorMap[option.value]),
+      color: tagColorFromHex(store.accountColorMap[option.label]),
       onClose: (e) => {
         e.stopPropagation()
         handleClose()
       },
     },
-    { default: () => option.value },
+    { default: () => option.label },
   )
 
 // ----- Tạo chu kì -----
@@ -168,7 +168,8 @@ async function saveCycle() {
     fee: Number(form.fee) || 0,
     note: form.note,
   }
-  const items = form.accounts.map((account) => ({ account, ...base }))
+  // form.accounts giờ là danh sách accountId (tham chiếu theo id, không theo tên)
+  const items = form.accounts.map((accountId) => ({ accountId, ...base }))
   await store.addCyclesBulk(items)
   showCycle.value = false
 }
@@ -239,7 +240,7 @@ async function saveBatch() {
     .filter((c) => isFilled(batchAmounts[c.id]))
     .map((c) => ({
       cycleId: c.id,
-      account: c.account,
+      accountId: c.accountId,
       date: bForm.date,
       amount: Number(batchAmounts[c.id]) || 0,
       token: bForm.token,

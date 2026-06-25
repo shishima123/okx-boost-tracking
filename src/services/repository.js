@@ -59,3 +59,16 @@ export const subscribeRewards = (cb, onErr) => subscribe('rewards', cb, onErr)
 export const addReward = (data) => create('rewards', data)
 export const updateReward = (id, data) => updateDoc(doc(db, 'rewards', id), data)
 export const deleteReward = (id) => deleteDoc(doc(db, 'rewards', id))
+
+// ---------- Migration ----------
+// Gán accountId cho hàng loạt document cũ (dùng để di trú từ tham chiếu theo tên -> theo id).
+// updates: [{ col: 'cycles'|'rewards', id, accountId }]. Chia lô 450 ops/batch (giới hạn 500).
+export async function setAccountIdsBatch(updates) {
+  for (let i = 0; i < updates.length; i += 450) {
+    const batch = writeBatch(db)
+    for (const u of updates.slice(i, i + 450)) {
+      batch.update(doc(db, u.col, u.id), { accountId: u.accountId })
+    }
+    await batch.commit()
+  }
+}

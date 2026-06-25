@@ -39,7 +39,7 @@ const tokenOptions = computed(() => tokens.value.map((t) => ({ label: t, value: 
 const renderAccountLabel = (option) => h(AccountBadge, { name: option.value, size: 'small' })
 
 const rows = computed(() =>
-  store.rewards
+  store.rewardsEnriched
     .filter((r) => !filterAccount.value || r.account === filterAccount.value)
     .filter((r) => !filterToken.value || r.token === filterToken.value)
     .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
