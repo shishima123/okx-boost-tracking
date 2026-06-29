@@ -2,8 +2,9 @@
 // File này chỉ giữ các giá trị mặc định cục bộ (localStorage).
 
 // Giá trị mặc định khi tạo chu kì mới (lưu localStorage)
+// defaultFee = phí gốc; defaultRebate = hoàn phí. Phí cuối = phí gốc - hoàn phí.
 const LS_DEFAULTS = 'okx_boost_defaults'
-const DEFAULTS = { cycleLengthDays: 10, defaultFee: 30 }
+const DEFAULTS = { cycleLengthDays: 10, defaultFee: 30, defaultRebate: 0 }
 
 export function getDefaults() {
   try {

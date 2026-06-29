@@ -33,6 +33,7 @@ import {
   tagType,
   clsColor,
   todayISO,
+  finalFee,
 } from '@/utils/format'
 
 const store = useBoostStore()
@@ -294,6 +295,114 @@ async function confirmRemoveCycle() {
   showDelCycle.value = false
   delTarget.value = null
 }
+
+// ----- Sửa chu kì (phí gốc / hoàn phí / ghi chú) cho một ví -----
+const showEditCycle = ref(false)
+const editCycleTarget = ref(null)
+const cycleForm = reactive({ feeGross: 0, feeRebate: 0, note: '' })
+// Phí cuối = phí gốc - hoàn phí (lưu sẵn vào DB)
+const cycleFeeFinal = computed(() => finalFee(cycleForm.feeGross, cycleForm.feeRebate))
+
+function openEditCycle(c) {
+  editCycleTarget.value = c
+  Object.assign(cycleForm, {
+    // Tương thích bản ghi cũ: chưa có feeGross -> dùng phí cũ làm phí gốc, hoàn phí = 0
+    feeGross: c.feeGross ?? c.fee ?? 0,
+    feeRebate: c.feeRebate ?? 0,
+    note: c.note || '',
+  })
+  showEditCycle.value = true
+}
+
+async function saveEditCycle() {
+  const c = editCycleTarget.value
+  if (!c) return
+  await store.updateCycle(c.id, {
+    feeGross: Number(cycleForm.feeGross) || 0,
+    feeRebate: Number(cycleForm.feeRebate) || 0,
+    fee: cycleFeeFinal.value,
+    note: cycleForm.note,
+  })
+  showEditCycle.value = false
+  editCycleTarget.value = null
+}
+
+// ----- Sửa phí nhanh cho cả đợt (phí gốc / hoàn phí của mọi ví) -----
+const showBatchFee = ref(false)
+const feeDraft = reactive({}) // cycleId -> { feeGross, feeRebate }
+const bulkGross = ref(null)
+const bulkRebate = ref(null)
+
+// Giá trị gốc của mỗi ví để so sánh "đã đổi" (tương thích bản ghi cũ chỉ có fee)
+function feeBaseline(c) {
+  return { feeGross: c.feeGross ?? c.fee ?? 0, feeRebate: c.feeRebate ?? 0 }
+}
+
+// Giá trị chung của một field nếu mọi ví bằng nhau, ngược lại null (để ô điền nhanh trống)
+function commonFeeValue(list, key) {
+  if (!list.length) return null
+  const first = Number(list[0][key]) || 0
+  return list.every((d) => (Number(d[key]) || 0) === first) ? first : null
+}
+
+function openBatchFee() {
+  for (const k of Object.keys(feeDraft)) delete feeDraft[k]
+  const drafts = cyclesInBatch.value.map((c) => (feeDraft[c.id] = feeBaseline(c)))
+  // Tự điền ô "điền nhanh" ở trên từ giá trị các ví bên dưới
+  bulkGross.value = commonFeeValue(drafts, 'feeGross')
+  bulkRebate.value = commonFeeValue(drafts, 'feeRebate')
+  showBatchFee.value = true
+}
+
+// Điền nhanh: chỉ áp những ô đã nhập (để trống thì giữ nguyên giá trị cũ của ví)
+function applyBulkFee() {
+  for (const c of cyclesInBatch.value) {
+    const d = feeDraft[c.id]
+    if (!d) continue
+    if (bulkGross.value !== null && bulkGross.value !== '') d.feeGross = bulkGross.value
+    if (bulkRebate.value !== null && bulkRebate.value !== '') d.feeRebate = bulkRebate.value
+  }
+}
+
+function feeFinalFor(id) {
+  const d = feeDraft[id]
+  return d ? finalFee(d.feeGross, d.feeRebate) : 0
+}
+
+function isFeeChanged(c) {
+  const d = feeDraft[c.id]
+  if (!d) return false
+  const base = feeBaseline(c)
+  return (
+    (Number(d.feeGross) || 0) !== (Number(base.feeGross) || 0) ||
+    (Number(d.feeRebate) || 0) !== (Number(base.feeRebate) || 0)
+  )
+}
+const changedFeeCount = computed(() => cyclesInBatch.value.filter(isFeeChanged).length)
+
+async function saveBatchFee() {
+  const items = cyclesInBatch.value.filter(isFeeChanged).map((c) => ({
+    id: c.id,
+    data: {
+      feeGross: Number(feeDraft[c.id].feeGross) || 0,
+      feeRebate: Number(feeDraft[c.id].feeRebate) || 0,
+      fee: feeFinalFor(c.id),
+    },
+  }))
+  if (!items.length) {
+    showBatchFee.value = false
+    return
+  }
+  const ok = await confirmDialog({
+    title: 'Sửa phí cả đợt',
+    content: `Lưu thay đổi phí cho ${items.length} ví?`,
+    positiveText: 'Lưu',
+    type: 'info',
+  })
+  if (!ok) return
+  await store.updateCyclesBulk(items)
+  showBatchFee.value = false
+}
 </script>
 
 <template>
@@ -357,7 +466,10 @@ async function confirmRemoveCycle() {
         <n-card size="small" style="margin-bottom: 16px">
           <template #header>Các ví trong chu kì</template>
           <template #header-extra>
-            <n-button size="small" secondary @click="openBatch">⚡ Nhập thưởng nhanh</n-button>
+            <n-space :size="8">
+              <n-button size="small" secondary @click="openBatchFee">✏️ Sửa phí cả đợt</n-button>
+              <n-button size="small" secondary @click="openBatch">⚡ Nhập thưởng nhanh</n-button>
+            </n-space>
           </template>
           <div class="table-wrap">
             <n-table :bordered="false" :single-line="false" striped size="small">
@@ -381,6 +493,7 @@ async function confirmRemoveCycle() {
                   <td class="nowrap">
                     <n-space :size="6" justify="center" :wrap="false">
                       <n-button size="tiny" secondary @click="openAdd(c)">+ Thưởng</n-button>
+                      <n-button size="tiny" secondary @click="openEditCycle(c)">Sửa</n-button>
                       <n-button size="tiny" secondary type="error" @click="askRemoveCycle(c)">
                         Xoá
                       </n-button>
@@ -640,6 +753,150 @@ async function confirmRemoveCycle() {
         </n-space>
       </template>
     </n-modal>
+
+    <!-- Modal sửa chu kì (phí gốc / hoàn phí) -->
+    <n-modal v-model:show="showEditCycle" preset="card" title="Sửa chu kì" style="max-width: 420px">
+      <n-space vertical :size="14">
+        <n-text v-if="editCycleTarget">
+          Ví <AccountBadge :name="editCycleTarget.account" /> · đợt
+          {{ fmtDate(batchMeta.start) }}
+        </n-text>
+        <div class="edit-fields">
+          <div>
+            <div class="muted small" style="margin-bottom: 6px">Phí gốc ($)</div>
+            <n-input-number
+              :show-button="false"
+              v-model:value="cycleForm.feeGross"
+              :min="0"
+              :step="0.01"
+              :input-props="{ inputmode: 'decimal' }"
+              style="width: 100%"
+            />
+          </div>
+          <div>
+            <div class="muted small" style="margin-bottom: 6px">Hoàn phí ($)</div>
+            <n-input-number
+              :show-button="false"
+              v-model:value="cycleForm.feeRebate"
+              :min="0"
+              :step="0.01"
+              :input-props="{ inputmode: 'decimal' }"
+              style="width: 100%"
+            />
+          </div>
+        </div>
+        <div>
+          <div class="muted small" style="margin-bottom: 6px">Phí cuối (tự tính)</div>
+          <n-input :value="fmtUSDT(cycleFeeFinal)" disabled />
+        </div>
+        <div>
+          <div class="muted small" style="margin-bottom: 6px">Ghi chú</div>
+          <n-input v-model:value="cycleForm.note" placeholder="Tuỳ chọn" />
+        </div>
+      </n-space>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showEditCycle = false">Huỷ</n-button>
+          <n-button type="primary" :loading="store.saving" @click="saveEditCycle">Lưu</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- Modal sửa phí nhanh cho cả đợt -->
+    <n-modal
+      v-model:show="showBatchFee"
+      preset="card"
+      title="✏️ Sửa phí cả đợt"
+      style="max-width: 560px"
+    >
+      <n-space vertical :size="14">
+        <div>
+          <div class="muted small" style="margin-bottom: 6px">Chu kì (đã chọn sẵn)</div>
+          <n-input
+            :value="`${fmtDate(batchMeta.start)} – ${fmtDate(batchMeta.end)} · ${batchSummary.count} ví`"
+            disabled
+          />
+        </div>
+
+        <div class="batch-section">
+          <div class="batch-fill-fee">
+            <span class="muted small">Điền nhanh cho tất cả ví (để trống = giữ nguyên)</span>
+            <div class="batch-fill-fee-inputs">
+              <n-input-number
+                :show-button="false"
+                v-model:value="bulkGross"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                placeholder="Phí gốc"
+                size="small"
+                style="flex: 1"
+              />
+              <n-input-number
+                :show-button="false"
+                v-model:value="bulkRebate"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                placeholder="Hoàn phí"
+                size="small"
+                style="flex: 1"
+              />
+              <n-button size="small" @click="applyBulkFee">Áp dụng</n-button>
+            </div>
+          </div>
+          <div class="fee-list">
+            <div class="fee-head muted">
+              <span class="fee-acc">Tài khoản</span>
+              <span>Phí gốc</span>
+              <span>Hoàn phí</span>
+              <span class="right">Phí cuối</span>
+            </div>
+            <div
+              v-for="c in cyclesInBatch"
+              :key="c.id"
+              class="fee-row"
+              :class="{ changed: isFeeChanged(c) }"
+            >
+              <span class="fee-acc"><AccountBadge :name="c.account" /></span>
+              <n-input-number
+                :show-button="false"
+                v-model:value="feeDraft[c.id].feeGross"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                size="small"
+              />
+              <n-input-number
+                :show-button="false"
+                v-model:value="feeDraft[c.id].feeRebate"
+                :min="0"
+                :step="0.01"
+                :input-props="{ inputmode: 'decimal' }"
+                size="small"
+              />
+              <span class="right bold">{{ fmtUSDT(feeFinalFor(c.id)) }}</span>
+            </div>
+          </div>
+        </div>
+      </n-space>
+      <template #footer>
+        <n-space justify="end" align="center">
+          <n-text v-if="changedFeeCount" depth="3" style="font-size: 12px">
+            {{ changedFeeCount }} thay đổi
+          </n-text>
+          <n-button @click="showBatchFee = false">Huỷ</n-button>
+          <n-button
+            type="primary"
+            :loading="store.saving"
+            :disabled="!changedFeeCount"
+            @click="saveBatchFee"
+          >
+            Lưu {{ changedFeeCount || '' }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -683,11 +940,13 @@ async function confirmRemoveCycle() {
 .small {
   font-size: 11px;
 }
-.batch-fields {
+.batch-fields,
+.edit-fields {
   display: flex;
   gap: 12px;
 }
-.batch-fields > * {
+.batch-fields > *,
+.edit-fields > * {
   flex: 1;
   min-width: 0;
 }
@@ -735,5 +994,53 @@ async function confirmRemoveCycle() {
 }
 .batch-acc {
   flex: 1;
+}
+
+/* ----- Sửa phí cả đợt ----- */
+.batch-fill-fee {
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-fill-fee-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.fee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.fee-head,
+.fee-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 0.9fr;
+  align-items: center;
+  gap: 10px;
+}
+.fee-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.fee-row.changed {
+  background: rgba(240, 185, 11, 0.16);
+  border-radius: 6px;
+}
+.fee-acc {
+  min-width: 0;
+}
+.fee-row .right,
+.fee-head .right {
+  text-align: right;
+}
+.fee-row .bold {
+  font-weight: 600;
 }
 </style>

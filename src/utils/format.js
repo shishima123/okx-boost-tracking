@@ -22,6 +22,11 @@ export function toNumber(v) {
   return Number.isFinite(n) ? n : 0
 }
 
+// Phí cuối của một chu kì = phí gốc - hoàn phí (không nhỏ hơn 0).
+export function finalFee(gross, rebate) {
+  return Math.max(0, toNumber(gross) - toNumber(rebate))
+}
+
 export function fmtUSDT(v, digits = 2) {
   const n = toNumber(v)
   const s = Math.abs(n).toLocaleString('en-US', {

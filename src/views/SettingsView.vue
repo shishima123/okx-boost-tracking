@@ -61,6 +61,7 @@ function saveDefaults() {
   setDefaults({
     cycleLengthDays: Number(defaults.value.cycleLengthDays) || 10,
     defaultFee: Number(defaults.value.defaultFee) || 0,
+    defaultRebate: Number(defaults.value.defaultRebate) || 0,
   })
   toastSuccess('Đã lưu giá trị mặc định.')
 }
@@ -103,10 +104,20 @@ function saveDefaults() {
             style="width: 100%"
           />
         </n-form-item>
-        <n-form-item label="Phí mặc định ($)" style="flex: 1">
+        <n-form-item label="Phí gốc mặc định ($)" style="flex: 1">
           <n-input-number
             :show-button="false"
             v-model:value="defaults.defaultFee"
+            :min="0"
+            :step="0.01"
+            :input-props="{ inputmode: 'decimal' }"
+            style="width: 100%"
+          />
+        </n-form-item>
+        <n-form-item label="Hoàn phí mặc định ($)" style="flex: 1">
+          <n-input-number
+            :show-button="false"
+            v-model:value="defaults.defaultRebate"
             :min="0"
             :step="0.01"
             :input-props="{ inputmode: 'decimal' }"

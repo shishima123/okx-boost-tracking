@@ -37,6 +37,7 @@ import {
   tagType,
   tagColorFromHex,
   accountStatusInfo,
+  finalFee,
 } from '@/utils/format'
 
 const store = useBoostStore()
@@ -131,11 +132,14 @@ const form = reactive({
   accounts: [], // nhiều tài khoản cùng lúc
   startDate: todayISO(),
   lengthDays: defaults.cycleLengthDays,
-  fee: defaults.defaultFee,
+  feeGross: defaults.defaultFee, // phí gốc trước hoàn phí
+  feeRebate: defaults.defaultRebate, // hoàn phí
   note: '',
 })
 
 const endPreview = computed(() => addDays(form.startDate, form.lengthDays))
+// Phí cuối = phí gốc - hoàn phí (lưu sẵn vào DB để các nơi khác lấy nhanh)
+const feeFinal = computed(() => finalFee(form.feeGross, form.feeRebate))
 const canSave = computed(() => form.accounts.length > 0)
 
 function openCreate() {
@@ -143,7 +147,8 @@ function openCreate() {
     accounts: [],
     startDate: todayISO(),
     lengthDays: defaults.cycleLengthDays,
-    fee: defaults.defaultFee,
+    feeGross: defaults.defaultFee,
+    feeRebate: defaults.defaultRebate,
     note: '',
   })
   showCycle.value = true
@@ -165,7 +170,9 @@ async function saveCycle() {
   const base = {
     startDate: form.startDate,
     endDate: addDays(form.startDate, form.lengthDays),
-    fee: Number(form.fee) || 0,
+    feeGross: Number(form.feeGross) || 0,
+    feeRebate: Number(form.feeRebate) || 0,
+    fee: feeFinal.value, // phí cuối đã trừ hoàn phí — dùng trực tiếp cho mọi thống kê
     note: form.note,
   }
   // form.accounts giờ là danh sách accountId (tham chiếu theo id, không theo tên)
@@ -429,15 +436,30 @@ async function saveBatch() {
         </n-form-item>
       </div>
       <div class="form-row">
-        <n-form-item label="Phí ($)">
+        <n-form-item label="Phí gốc ($)">
           <n-input-number
             :show-button="false"
-            v-model:value="form.fee"
+            v-model:value="form.feeGross"
             :min="0"
             :step="0.01"
             :input-props="{ inputmode: 'decimal' }"
             style="width: 100%"
           />
+        </n-form-item>
+        <n-form-item label="Hoàn phí ($)">
+          <n-input-number
+            :show-button="false"
+            v-model:value="form.feeRebate"
+            :min="0"
+            :step="0.01"
+            :input-props="{ inputmode: 'decimal' }"
+            style="width: 100%"
+          />
+        </n-form-item>
+      </div>
+      <div class="form-row">
+        <n-form-item label="Phí cuối (tự tính)">
+          <n-input :value="fmtUSDT(feeFinal)" disabled />
         </n-form-item>
         <n-form-item label="Ngày kết thúc (tự tính)">
           <n-input :value="fmtDate(endPreview)" disabled />

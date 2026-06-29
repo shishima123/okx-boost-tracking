@@ -200,6 +200,12 @@ export const useBoostStore = defineStore('boost', {
     updateCycle(id, data) {
       return this._run(() => repo.updateCycle(id, data), 'Đã cập nhật chu kì.')
     },
+    updateCyclesBulk(items) {
+      return this._run(
+        () => Promise.all(items.map((it) => repo.updateCycle(it.id, it.data))),
+        `Đã cập nhật ${items.length} chu kì.`,
+      )
+    },
     deleteCycle(id) {
       return this._run(() => repo.deleteCycle(id), 'Đã xoá chu kì.')
     },
