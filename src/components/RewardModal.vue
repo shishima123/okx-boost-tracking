@@ -116,7 +116,11 @@ async function save() {
         </n-form-item>
       </n-space>
       <n-form-item label="Token / Loại thưởng">
-        <n-input v-model:value="form.token" placeholder="VD: SLX, IRYS…" />
+        <n-input
+          :value="form.token"
+          @update:value="(v) => (form.token = (v || '').toUpperCase())"
+          placeholder="VD: SLX, IRYS…"
+        />
       </n-form-item>
       <n-form-item label="Ghi chú">
         <n-input v-model:value="form.note" placeholder="Tuỳ chọn" />

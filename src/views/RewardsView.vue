@@ -129,9 +129,11 @@ async function remove(r) {
               <td class="acc-col"><AccountBadge :name="r.account" /></td>
               <td class="muted">{{ cycleLabel[r.cycleId] || '—' }}</td>
               <td>
-                <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>
+                <n-tag v-if="r.token" size="tiny" :bordered="false" style="margin-right: 6px">
+                  {{ r.token }}
+                </n-tag>
                 <n-tag v-if="r.estimated" size="tiny" :bordered="false" type="warning">
-                  ước lượng
+                  Ước lượng
                 </n-tag>
               </td>
               <td class="right green">+{{ fmtUSDT(r.amount) }}</td>

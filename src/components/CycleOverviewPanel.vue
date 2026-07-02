@@ -571,15 +571,23 @@ async function saveBatchFee() {
                   <td>
                     <n-input
                       v-if="editing"
-                      v-model:value="draft[r.id].token"
+                      :value="draft[r.id].token"
+                      @update:value="(v) => (draft[r.id].token = (v || '').toUpperCase())"
                       size="small"
                       placeholder="Token"
                       style="width: 120px"
                     />
                     <template v-else>
-                      <n-tag v-if="r.token" size="tiny" :bordered="false">{{ r.token }}</n-tag>
+                      <n-tag
+                        v-if="r.token"
+                        size="tiny"
+                        :bordered="false"
+                        style="margin-right: 6px"
+                      >
+                        {{ r.token }}
+                      </n-tag>
                       <n-tag v-if="r.estimated" size="tiny" :bordered="false" type="warning">
-                        ước lượng
+                        Ước lượng
                       </n-tag>
                     </template>
                   </td>
@@ -608,7 +616,7 @@ async function saveBatchFee() {
                       </n-button>
                     </n-space>
                     <n-checkbox v-else v-model:checked="draft[r.id].estimated" size="small">
-                      ước lượng
+                      Ước lượng
                     </n-checkbox>
                   </td>
                 </tr>
@@ -664,7 +672,11 @@ async function saveBatchFee() {
           </div>
           <div>
             <div class="muted small" style="margin-bottom: 6px">Token / Loại thưởng</div>
-            <n-input v-model:value="bForm.token" placeholder="VD: SLX, IRYS…" />
+            <n-input
+              :value="bForm.token"
+              @update:value="(v) => (bForm.token = (v || '').toUpperCase())"
+              placeholder="VD: SLX, IRYS…"
+            />
           </div>
         </div>
 

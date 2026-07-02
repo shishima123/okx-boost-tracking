@@ -504,7 +504,11 @@ async function saveBatch() {
           />
         </n-form-item>
         <n-form-item label="Token / Loại thưởng">
-          <n-input v-model:value="bForm.token" placeholder="VD: SLX, IRYS…" />
+          <n-input
+            :value="bForm.token"
+            @update:value="(v) => (bForm.token = (v || '').toUpperCase())"
+            placeholder="VD: SLX, IRYS…"
+          />
         </n-form-item>
       </div>
 
