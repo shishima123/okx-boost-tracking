@@ -1055,4 +1055,21 @@ async function saveBatchFee() {
 .fee-row .bold {
   font-weight: 600;
 }
+
+/* ----- Mobile: header card (tiêu đề + nút) xếp dọc để tiêu đề không bị bóp 1 ký tự/dòng ----- */
+@media (max-width: 600px) {
+  :deep(.n-card-header) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  :deep(.n-card-header__extra) {
+    margin-left: 0;
+    width: 100%;
+  }
+  /* Hai ô điền nhanh + nút xếp dọc cho vừa màn hình */
+  .batch-fill-fee-inputs {
+    flex-wrap: wrap;
+  }
+}
 </style>

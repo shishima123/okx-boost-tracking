@@ -131,6 +131,53 @@ async function remove(a) {
   })
   if (ok) await store.deleteAccount(a.id)
 }
+
+// ----- Nhân bản tài khoản -----
+// Tăng nhóm số cuối cùng trong tên (giữ số 0 đứng đầu). Không có số -> thêm " 2".
+function incrementName(name) {
+  const m = String(name).match(/^(.*?)(\d+)(\D*)$/)
+  if (!m) return `${name} 2`
+  const next = String(Number(m[2]) + 1).padStart(m[2].length, '0')
+  return `${m[1]}${next}${m[3]}`
+}
+
+const showDup = ref(false)
+const dupForm = reactive({ name: '', color: '', note: '', status: 'active' })
+
+function openDuplicate(a) {
+  const existing = new Set(store.accounts.map((x) => x.name))
+  // Gợi ý tên kế tiếp (đã tránh trùng)
+  let suggested = incrementName(a.name)
+  while (existing.has(suggested)) suggested = incrementName(suggested)
+  Object.assign(dupForm, {
+    name: suggested,
+    color: a.color || '',
+    note: a.note || '',
+    status: accountStatusInfo(a.status).value,
+  })
+  showDup.value = true
+}
+
+async function saveDuplicate() {
+  const name = dupForm.name.trim()
+  if (!name) return
+  const ok = await confirmDialog({
+    title: 'Nhân bản tài khoản',
+    content: `Tạo tài khoản "${name}"?`,
+    positiveText: 'Tạo',
+    type: 'info',
+  })
+  if (!ok) return
+  const maxOrder = store.accounts.reduce((m, a) => Math.max(m, a.order ?? -1), -1)
+  await store.addAccount({
+    name,
+    color: dupForm.color || '',
+    note: (dupForm.note || '').trim(),
+    status: dupForm.status || 'active',
+    order: maxOrder + 1,
+  })
+  showDup.value = false
+}
 </script>
 
 <template>
@@ -181,6 +228,7 @@ async function remove(a) {
               <td class="nowrap">
                 <n-space :size="6" justify="center" :wrap="false">
                   <n-button size="tiny" secondary @click="openEdit(a)">Sửa</n-button>
+                  <n-button size="tiny" secondary @click="openDuplicate(a)">Nhân bản</n-button>
                   <n-button size="tiny" secondary type="error" @click="remove(a)">Xoá</n-button>
                 </n-space>
               </td>
@@ -227,6 +275,42 @@ async function remove(a) {
           @click="save"
         >
           Lưu
+        </n-button>
+      </n-space>
+    </template>
+  </n-modal>
+
+  <!-- Modal nhân bản tài khoản -->
+  <n-modal v-model:show="showDup" preset="card" title="Nhân bản tài khoản" style="max-width: 420px">
+    <n-form :show-feedback="false" class="tight-form">
+      <n-form-item label="Tên tài khoản">
+        <n-input v-model:value="dupForm.name" placeholder="VD: Mi17 - OKX 1- 6" />
+      </n-form-item>
+      <n-form-item label="Trạng thái">
+        <n-select v-model:value="dupForm.status" :options="statusOptions" />
+      </n-form-item>
+      <n-form-item label="Màu badge">
+        <n-color-picker
+          v-model:value="dupForm.color"
+          :swatches="COLOR_SWATCHES"
+          :modes="['hex']"
+          :show-alpha="false"
+        />
+      </n-form-item>
+      <n-form-item label="Ghi chú">
+        <n-input v-model:value="dupForm.note" placeholder="Tuỳ chọn" />
+      </n-form-item>
+    </n-form>
+    <template #footer>
+      <n-space justify="end">
+        <n-button @click="showDup = false">Huỷ</n-button>
+        <n-button
+          type="primary"
+          :loading="store.saving"
+          :disabled="!dupForm.name.trim()"
+          @click="saveDuplicate"
+        >
+          Tạo
         </n-button>
       </n-space>
     </template>
