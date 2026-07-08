@@ -38,7 +38,7 @@ export function fmtUSDT(v, digits = 2) {
 
 export function fmtPct(v, digits = 1) {
   const n = toNumber(v) * 100
-  return `${n >= 0 ? '' : ''}${n.toLocaleString('en-US', {
+  return `${n.toLocaleString('en-US', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })}%`

@@ -1,7 +1,7 @@
 // Khởi tạo Firebase (Auth + Firestore). Cấu hình đọc từ biến môi trường Vite.
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,4 +14,7 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+// ignoreUndefinedProperties: bản ghi cũ (chưa di trú) thiếu accountId/note — khi
+// thêm/sửa thưởng, code gửi field undefined và Firestore mặc định sẽ throw.
+// Bật cờ này để bỏ qua field undefined thay vì vỡ thao tác ghi.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true })

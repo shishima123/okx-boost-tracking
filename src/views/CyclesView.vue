@@ -79,8 +79,6 @@ function openDetail(b) {
   showDetail.value = true
 }
 
-const accountOptions = computed(() => store.accountNames.map((n) => ({ label: n, value: n })))
-
 // Lọc tài khoản khi TẠO chu kì: luôn loại ví "bị hạn chế"; tuỳ chọn chỉ hiện ví "đang chạy".
 const onlyActive = ref(true)
 const createAccountOptions = computed(() =>
@@ -95,9 +93,7 @@ const hiddenAccountCount = computed(
   () => store.accountNames.length - createAccountOptions.value.length,
 )
 
-// Hiển thị tên tài khoản theo màu badge trong dropdown / chip đã chọn
-const renderAccountLabel = (option) => h(AccountBadge, { name: option.value, size: 'small' })
-// Như trên nhưng kèm tag trạng thái (dùng cho dropdown tạo chu kì)
+// Tên tài khoản theo màu badge kèm tag trạng thái (dùng cho dropdown tạo chu kì)
 const renderCreateLabel = (option) =>
   h('span', { style: 'display:inline-flex;align-items:center;gap:8px' }, [
     h(AccountBadge, { name: option.label, size: 'small' }),

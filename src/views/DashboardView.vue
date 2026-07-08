@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { useStorage } from '@vueuse/core'
+import { useStorage, StorageSerializers } from '@vueuse/core'
 import {
   NGrid,
   NGi,
@@ -48,7 +48,11 @@ const store = useBoostStore()
 
 // ----- Lọc theo khoảng ngày (theo startDate của chu kì) -----
 // null = tất cả; ngược lại [fromISO, toISO]
-const range = useStorage('okx_boost_dash_range', null)
+// Mặc định null nên VueUse không tự đoán được kiểu -> phải ép serializer object,
+// nếu không mảng ngày bị lưu bằng String() và hỏng sau khi reload trang.
+const range = useStorage('okx_boost_dash_range', null, undefined, {
+  serializer: StorageSerializers.object,
+})
 
 const hasRange = computed(() => !!(range.value && range.value[0] && range.value[1]))
 const rangeLabel = computed(() =>
